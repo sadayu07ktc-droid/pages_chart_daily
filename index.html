@@ -411,13 +411,47 @@
   }
 
   function segs(d){
+    const runMin  = num(d.runMin);
+    const idleMin = num(d.idleMin);
+    const parkMin = num(d.parkMin);
+  
+    // โหมดระยะทาง:
+    // ความสูงแท่ง = ระยะทางจริง
+    // สีในแท่ง = สัดส่วนเวลาของคันนั้น
     if(metric === 'dist'){
-      return [['seg-h', num(d.distanceKm)]];
+      const dist = num(d.distanceKm);
+      const totalMin = runMin + idleMin + parkMin;
+  
+      // ถ้ามีระยะทาง แต่ยังไม่มีเวลา ให้แสดงเขียวเต็มแท่งก่อน
+      if(dist > 0 && totalMin <= 0){
+        return [
+          ['seg-h', dist]
+        ];
+      }
+  
+      // ถ้าไม่มีระยะทาง ก็ไม่ต้องวาด
+      if(dist <= 0){
+        return [];
+      }
+  
+      const runPart  = dist * (runMin  / totalMin);
+      const idlePart = dist * (idleMin / totalMin);
+      const parkPart = dist * (parkMin / totalMin);
+  
+      return [
+        ['seg-h', runPart],   // เขียว = เวลาวิ่ง
+        ['seg-i', idlePart],  // ส้ม = จอดไม่ดับเครื่อง
+        ['seg-s', parkPart]   // เทา = จอดดับเครื่อง
+      ];
     }
+  
+    // โหมดเวลา:
+    // ความสูงแท่ง = เวลารวม
+    // สีในแท่ง = นาทีจริง
     return [
-      ['seg-h', num(d.runMin)],
-      ['seg-i', num(d.idleMin)],
-      ['seg-s', num(d.parkMin)]
+      ['seg-h', runMin],
+      ['seg-i', idleMin],
+      ['seg-s', parkMin]
     ];
   }
 
