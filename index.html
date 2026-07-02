@@ -62,7 +62,12 @@
   .seg-h{background:var(--heavy)} .seg-l{background:var(--light)} .seg-i{background:var(--idle)} .seg-o{background:var(--over)} .seg-s{background:var(--stop)}
   .xlab{font-size:10px;color:var(--ink-faint);margin-top:8px;text-align:center;line-height:1.25;max-width:60px}
   .xlab b{display:block;color:var(--ink-soft);font-weight:600;white-space:nowrap}
-  .src-pill{display:inline-block;font-size:8.5px;font-weight:700;padding:0 4px;border-radius:4px;margin-top:2px}
+  .src-pill{display:inline-block;font-size:8.5px;font-weight:700;padding:2px 6px;border-radius:999px;margin-top:2px;white-space:nowrap}
+  .st-run{background:#E9F4EE;color:#1F7A5A}
+  .st-idling{background:#FFF3E3;color:#B86A00}
+  .st-park{background:#EAF1FF;color:#2F6FD6}
+  .st-off{background:#FDECEA;color:#C0492F}
+  .st-unknown{background:#EEF2F0;color:#6B7C74}
   .src-live{background:#E9F4EE;color:var(--pine)} .src-dtc{background:#EDEFF5;color:#5B6B8C} .src-sheet{background:#EAF3EF;color:var(--pine-deep)}
 
   .legend{display:flex;flex-wrap:wrap;gap:14px;margin:18px 0 4px;padding-top:14px;border-top:1px solid var(--line)}
@@ -128,6 +133,7 @@
     </div>
     <div class="sp"></div>
     <div class="seg" id="metricSeg">
+      <button data-m="dist">ระยะทาง (กม.)</button>
       <button class="on" data-m="time">เวลา (ชม.)</button>
     </div>
   </div>
@@ -151,6 +157,7 @@
     เรียงตาม:
     <div class="seg" id="sortSeg">
       <button class="on" data-s="time">เวลารวม</button>
+      <button data-s="dist">ระยะทาง</button>
       <button data-s="run">เวลาวิ่ง</button>
       <button data-s="park">จอดดับเครื่อง</button>
       <button data-s="problem">จอดไม่ดับ/ปัญหา</button>
@@ -168,7 +175,7 @@
     <div class="lg"><span class="sw" style="background:var(--idle)"></span>จอดรถไม่ดับเครื่อง</div>
     <div class="lg"><span class="sw" style="background:var(--stop)"></span>จอดรถดับเครื่อง</div>
     <div class="lg"><span class="sw" style="background:var(--over)"></span>ไม่ดับเครื่องเกินเกณฑ์</div>
-    <div class="lg" style="margin-left:auto;color:var(--target)"><span class="sw" style="background:var(--target);border-radius:2px;height:3px"></span>เป้าหมายเวลาวิ่ง/วัน</div>
+    <div class="lg" style="margin-left:auto;color:var(--target)"><span class="sw" style="background:var(--target);border-radius:2px;height:3px"></span>เป้าหมาย/วัน</div>
   </div>
 </div>
 
@@ -178,6 +185,7 @@
 
 <script>
   const GAS_URL = 'https://script.google.com/macros/s/AKfycbw4UvKuRrAQ_3Ldm8U0VJqfjfBQUSYaTEdrxkdXUVN98G68XseCquhDeXfMgU8cVYaY/exec';
+  const TARGET_DIST = 300;
   const TARGET_TIME = 9 * 60;
 
   let metric = 'time';
@@ -220,8 +228,12 @@
     return num(d.runMin) + num(d.idleMin) + num(d.parkMin);
   }
 
+  function totalDist(d){
+    return num(d.distanceKm);
+  }
+
   function colHeight(d){
-    return totalTime(d);
+    return metric === 'dist' ? totalDist(d) : totalTime(d);
   }
 
   function stateText(s){
@@ -242,11 +254,21 @@
     return '⚪ ' + (s || 'ไม่ทราบสถานะ');
   }
 
+  function stateClass(s){
+    s = String(s || '').toLowerCase();
+    if(s === 'run') return 'st-run';
+    if(s === 'idling') return 'st-idling';
+    if(s === 'park') return 'st-park';
+    if(s === 'off') return 'st-off';
+    return 'st-unknown';
+  }
+
   function normalizeDtcToday(j) {
     const items = (j.items || []).map(x => {
       const runMin = num(x.runMin);
       const idleMin = num(x.idleMin);
       const parkMin = num(x.parkMin);
+      const distanceKm = num(x.distanceKm || x.dtcDistance || x.distance);
       return {
         date: x.date || j.date || '',
         driverId: x.driverId || '',
@@ -255,6 +277,7 @@
         plates: x.plates || x.plate || '',
         vehicleType: x.vehicleType || '',
         gpsState: x.gpsState || '',
+        distanceKm,
         runMin,
         idleMin,
         parkMin,
@@ -351,6 +374,7 @@
         driverName: x.name || '',
         vehicleType: x.vehicleType || '',
         gpsState: x.gpsState || '',
+        distanceKm: num(x.distanceKm),
         runMin: num(x.runMin),
         idleMin: num(x.idleMin),
         parkMin: num(x.parkMin),
@@ -367,7 +391,9 @@
   function buildSeries(){
     let items = API_ITEMS.map(toChartItem);
 
-    if(sortBy === 'run'){
+    if(sortBy === 'dist'){
+      items.sort((a,b)=>num(b.d.distanceKm)-num(a.d.distanceKm));
+    }else if(sortBy === 'run'){
       items.sort((a,b)=>num(b.d.runMin)-num(a.d.runMin));
     }else if(sortBy === 'park'){
       items.sort((a,b)=>num(b.d.parkMin)-num(a.d.parkMin));
@@ -383,6 +409,9 @@
   }
 
   function segs(d){
+    if(metric === 'dist'){
+      return [['seg-h', num(d.distanceKm)]];
+    }
     return [
       ['seg-h', num(d.runMin)],
       ['seg-i', num(d.idleMin)],
@@ -392,14 +421,41 @@
 
   function renderKPI(series){
     const items = series.items.map(x => x.d);
+    const totalDistKm = items.reduce((s,d)=>s+num(d.distanceKm),0);
+    const distVehicles = items.filter(d => num(d.distanceKm) > 0).length;
+    const reachedDist = items.filter(d => num(d.distanceKm) >= TARGET_DIST).length;
     const totalRun = items.reduce((s,d)=>s+num(d.runMin),0);
     const totalIdle = items.reduce((s,d)=>s+num(d.idleMin),0);
     const totalPark = items.reduce((s,d)=>s+num(d.parkMin),0);
-    const totalStop = items.reduce((s,d)=>s+num(d.stopCount),0);
     const totalIdleOver = items.reduce((s,d)=>s+num(d.idleOverCount),0);
     const runningVehicles = items.filter(d => num(d.runMin) > 0).length;
     const totalVehicles = items.length || 0;
     const runPct = totalVehicles ? Math.round(runningVehicles / totalVehicles * 100) : 0;
+    const reachedPct = totalVehicles ? Math.round(reachedDist / totalVehicles * 100) : 0;
+    const avgDist = distVehicles ? Math.round(totalDistKm / distVehicles) : 0;
+
+    if(metric === 'dist'){
+      document.getElementById('kpis').innerHTML = `
+        <div class="kpi">
+          <div class="kt">📍 ระยะทางรวม</div>
+          <span class="kpct pct-good">${distVehicles}/${totalVehicles} คัน</span>
+          <div class="kv">${Math.round(totalDistKm).toLocaleString()}<span class="ku"> กม.</span></div>
+          <div class="kbar" style="width:${Math.min(100, totalDistKm ? 100 : 0)}%;background:var(--heavy)"></div>
+        </div>
+        <div class="kpi">
+          <div class="kt">📊 เฉลี่ยระยะทาง</div>
+          <span class="kpct ${avgDist >= TARGET_DIST ? 'pct-good' : avgDist >= 200 ? 'pct-mid' : 'pct-bad'}">เป้า ${TARGET_DIST} กม.</span>
+          <div class="kv">${avgDist.toLocaleString()}<span class="ku"> กม./คัน</span></div>
+          <div class="kbar" style="width:${Math.min(100, Math.round(avgDist / TARGET_DIST * 100))}%;background:var(--pine)"></div>
+        </div>
+        <div class="kpi">
+          <div class="kt">🎯 คันที่ถึงเป้า</div>
+          <span class="kpct ${reachedPct>=70?'pct-good':reachedPct>=40?'pct-mid':'pct-bad'}">${reachedPct}%</span>
+          <div class="kv">${reachedDist}<span class="ku">/${totalVehicles} คัน</span></div>
+          <div class="kbar" style="width:${reachedPct}%;background:${reachedPct>=70?'var(--pine)':reachedPct>=40?'var(--idle)':'var(--over)'}"></div>
+        </div>`;
+      return;
+    }
 
     document.getElementById('kpis').innerHTML = `
       <div class="kpi">
@@ -427,8 +483,8 @@
     renderKPI(series);
     const items = series.items;
     const H = 300;
-    const maxV = Math.max(...items.map(x => colHeight(x.d)), TARGET_TIME) * 1.12;
-    const target = TARGET_TIME;
+    const target = metric === 'dist' ? TARGET_DIST : TARGET_TIME;
+    const maxV = Math.max(...items.map(x => colHeight(x.d)), target) * 1.12;
 
     const grid = document.getElementById('grid');
     grid.innerHTML = '';
@@ -437,13 +493,13 @@
       const y = H - (val / maxV * H);
       grid.insertAdjacentHTML('beforeend',
         `<div class="gridline" style="top:${18+y}px"></div>
-         <div class="ytick" style="top:${18+y}px">${Math.round(val/60*10)/10}</div>`);
+         <div class="ytick" style="top:${18+y}px">${metric === 'dist' ? val : Math.round(val/60*10)/10}</div>`);
     }
 
     const ty = H - (target / maxV * H);
     grid.insertAdjacentHTML('beforeend',
       `<div class="target-line" style="top:${18+ty}px"></div>
-       <div class="target-tag" style="top:${18+ty}px">เป้า ${Math.round(target/60)} ชม.</div>`);
+       <div class="target-tag" style="top:${18+ty}px">เป้า ${metric === 'dist' ? target + ' กม.' : Math.round(target/60) + ' ชม.'}</div>`);
 
     const bars = document.getElementById('bars');
     bars.innerHTML = '';
@@ -464,7 +520,7 @@
         const col = document.createElement('div');
         col.className = 'bcol wide' + (alert ? ' alert' : '');
         col.innerHTML = `<div class="stack" style="height:${Math.max(2, stackH)}px">${inner}</div>
-          <div class="xlab"><b>${it.l1}</b>${it.l2 ? '<br>' + it.l2 : ''}<br><span class="src-pill src-live">${stateText(d.gpsState)}</span></div>`;
+          <div class="xlab"><b>${it.l1}</b>${it.l2 ? '<br>' + it.l2 : ''}<br><span class="src-pill ${stateClass(d.gpsState)}">${stateText(d.gpsState)}</span></div>`;
         col.addEventListener('mousemove', e => showTip(e, d, it));
         col.addEventListener('mouseleave', () => { tip.style.opacity = 0; tip.style.visibility = 'hidden'; });
         col.addEventListener('click', () => openDrawer(d, it));
@@ -475,7 +531,7 @@
     const scopeTxt = scope === 'fleet' ? 'ทั้งฟลีต' : ('รถ ' + scope);
     const updated = API_UPDATED ? ' · อัปเดต ' + fmtDateTime(API_UPDATED) : '';
     const srcTxt = API_SOURCE ? ' · ' + API_SOURCE : '';
-    document.getElementById('sub').textContent = scopeTxt + ' · วันนี้ · เวลาใช้งานจาก DTC' + srcTxt + updated;
+    document.getElementById('sub').textContent = scopeTxt + ' · วันนี้ · ' + (metric === 'dist' ? 'ระยะทาง' : 'เวลาใช้งาน') + 'จาก DTC' + srcTxt + updated;
   }
 
   function showTip(e, d, it){
@@ -483,11 +539,11 @@
     const title = (d.plate ? d.plate + ' · ' : '') + (d.driverName || it.l2 || d.driverId);
     tip.innerHTML = `
       <h4>${title}<span class="day">${stateBadge(d.gpsState)}</span></h4>
-      <div class="trow"><span class="sw seg-h"></span>เวลาวิ่ง<span class="v">${fmtMin(d.runMin)} ชม.</span></div>
+      ${metric === 'dist' ? `<div class="trow"><span class="sw seg-h"></span>ระยะทางวันนี้<span class="v">${Math.round(num(d.distanceKm)).toLocaleString()} กม.</span></div>` : `<div class="trow"><span class="sw seg-h"></span>เวลาวิ่ง<span class="v">${fmtMin(d.runMin)} ชม.</span></div>`}
       <div class="trow"><span class="sw seg-i"></span>จอดรถไม่ดับเครื่อง<span class="v">${fmtMin(d.idleMin)} ชม.</span></div>
       <div class="trow"><span class="sw seg-s"></span>จอดรถดับเครื่อง<span class="v">${fmtMin(d.parkMin)} ชม.</span></div>
       <div class="div"></div>
-      <div class="big">เวลารวมวันนี้<b>${fmtMin(total)} ชม.</b></div>
+      ${metric === 'dist' ? `<div class="big">เทียบเป้า ${TARGET_DIST} กม.<b>${Math.min(100, Math.round(num(d.distanceKm) / TARGET_DIST * 100))}%</b></div>` : `<div class="big">เวลารวมวันนี้<b>${fmtMin(total)} ชม.</b></div>`}
       <div class="kpi2">
         <div class="kc"><div class="kv">${num(d.idleCount)}</div><div class="kl">ครั้งจอดไม่ดับ</div></div>
         <div class="kc"><div class="kv">${num(d.idleOverCount)}</div><div class="kl">เกินเกณฑ์</div></div>
@@ -533,6 +589,7 @@
         <div class="dsec">
           <h3>🧾 รายละเอียด</h3>
           <div class="dmetrics">
+            <div class="dm"><div class="v">${Math.round(num(d.distanceKm)).toLocaleString()}</div><div class="l">ระยะทางวันนี้ (กม.)</div></div>
             <div class="dm"><div class="v">${fmtMin(total)}</div><div class="l">เวลารวมวันนี้ (ชม.)</div></div>
             <div class="dm"><div class="v">${fmtMin(d.runMin)}</div><div class="l">เวลาวิ่ง (ชม.)</div></div>
             <div class="dm"><div class="v">${fmtMin(d.idleMin)}</div><div class="l">จอดรถไม่ดับเครื่อง</div></div>
@@ -542,6 +599,11 @@
             <div class="dm"><div class="v">${num(d.idleOverCount)}</div><div class="l">ไม่ดับเครื่องเกินเกณฑ์</div></div>
             <div class="dm"><div class="v">${num(d.overtime8)}</div><div class="l">ขับเกิน 8 ชม.</div></div>
           </div>
+        </div>
+
+        <div class="dsec">
+          <h3>🎯 เทียบเป้าหมายระยะทาง</h3>
+          <div class="dgoal"><span>${num(d.distanceKm) >= TARGET_DIST ? '✅ ถึงเป้า' : '⚠️ ยังไม่ถึงเป้า'} (${TARGET_DIST} กม./วัน)</span><b style="color:${num(d.distanceKm) >= TARGET_DIST ? 'var(--pine)' : 'var(--over)'}">${Math.min(100, Math.round(num(d.distanceKm) / TARGET_DIST * 100))}%</b></div>
         </div>
 
         ${(num(d.idleOverCount)>0 || num(d.overtime8)>0) ? `<div class="dwarn">⚠️ ${num(d.overtime8)>0?'ขับเกิน 8 ชม. · ':''}จอดรถไม่ดับเครื่องเกินเกณฑ์ ${num(d.idleOverCount)} ครั้ง</div>` : ''}
@@ -562,6 +624,15 @@
   }
 
   document.addEventListener('keydown', e => { if(e.key === 'Escape') closeDrawer(); });
+
+
+  document.getElementById('metricSeg').addEventListener('click', e => {
+    const b = e.target.closest('button'); if(!b) return;
+    document.querySelectorAll('#metricSeg button').forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+    metric = b.dataset.m;
+    render();
+  });
 
   document.getElementById('sortSeg').addEventListener('click', e => {
     const b = e.target.closest('button'); if(!b) return;
