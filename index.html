@@ -265,7 +265,50 @@
     sel.value = exists ? old : 'fleet';
     scope = sel.value;
   }
-
+  function normalizeDtcToday(j) {
+    const items = (j.items || []).map(x => {
+      const runMin = Number(x.runMin || 0);
+      const idleMin = Number(x.idleMin || 0);
+      const parkMin = Number(x.parkMin || 0);
+  
+      return {
+        date: x.date,
+        driverId: x.driverId,
+        name: x.name || x.driverId,
+        plate: x.plate || '',
+        vehicleType: x.vehicleType || '',
+        gpsState: x.gpsState || '',
+  
+        runMin: runMin,
+        idleMin: idleMin,
+        parkMin: parkMin,
+  
+        idleCount: Number(x.idleCount || 0),
+        idleOverCount: Number(x.idleOverCount || 0),
+        stopCount: Number(x.stopCount || 0),
+        overtime4: Number(x.overtime4 || 0),
+        overtime8: Number(x.overtime8 || 0),
+  
+        totalTimeMin: runMin + idleMin + parkMin,
+        runHour: +(runMin / 60).toFixed(2),
+        idleHour: +(idleMin / 60).toFixed(2),
+        parkHour: +(parkMin / 60).toFixed(2),
+        totalHour: +((runMin + idleMin + parkMin) / 60).toFixed(2),
+  
+        src: x.src || 'live'
+      };
+    });
+  
+    return {
+      ok: true,
+      source: j.source || 'LOG_DailyCount',
+      mode: j.mode || 'today',
+      date: j.date || '',
+      updatedAt: j.updatedAt || '',
+      summary: j.summary || {},
+      items: items
+    };
+  }
   async function loadDailyRunChart(){
     API_LOADING = true;
     API_ERROR = '';
@@ -274,7 +317,7 @@
     try{
       const isFleet = scope === 'fleet';
       const url = GAS_URL
-        + '?action=getDailyRunChart'
+        + '?action=getDtcTodayChart'
         + getRangeParams()
         + '&scope=' + encodeURIComponent(isFleet ? 'fleet' : 'plate')
         + (isFleet ? '' : '&plate=' + encodeURIComponent(scope))
