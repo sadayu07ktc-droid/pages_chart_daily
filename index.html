@@ -53,15 +53,17 @@
   .bars-scroll{overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;scrollbar-color:rgba(120,140,130,.35) transparent}
   .bars-scroll::-webkit-scrollbar{height:7px}
   .bars-scroll::-webkit-scrollbar-thumb{background:rgba(120,140,130,.3);border-radius:10px}
-  .bars{display:flex;align-items:flex-end;gap:10px;height:300px;position:relative;z-index:2;min-width:100%}
-  .bcol{flex:1 0 auto;min-width:34px;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end;cursor:pointer}
+  .bars{display:flex;align-items:flex-start;gap:10px;height:372px;position:relative;z-index:2;min-width:100%}
+  .bcol{flex:1 0 auto;min-width:34px;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-start;cursor:pointer}
   .bcol.wide{min-width:48px}
+  .barArea{height:300px;width:100%;display:flex;align-items:flex-end;justify-content:center}
   .stack{width:74%;max-width:42px;border-radius:6px 6px 3px 3px;overflow:hidden;display:flex;flex-direction:column-reverse;transition:filter .12s,transform .12s}
   .bcol:hover .stack{filter:brightness(1.06);transform:translateY(-2px)}
   .bcol.alert .stack{outline:2px solid var(--over);outline-offset:1px}
   .seg-h{background:var(--heavy)} .seg-l{background:var(--light)} .seg-i{background:var(--idle)} .seg-o{background:var(--over)} .seg-s{background:var(--stop)}
-  .xlab{font-size:10px;color:var(--ink-faint);margin-top:8px;text-align:center;line-height:1.25;max-width:60px}
+  .xlab{font-size:10px;color:var(--ink-faint);margin-top:8px;text-align:center;line-height:1.25;max-width:66px;min-height:58px}
   .xlab b{display:block;color:var(--ink-soft);font-weight:600;white-space:nowrap}
+  .xlab .driver-name{display:block;color:var(--ink-faint);font-size:9.5px;line-height:1.18;margin-top:2px;max-height:24px;overflow:hidden}
   .src-pill{display:inline-block;font-size:8.5px;font-weight:700;padding:2px 6px;border-radius:999px;margin-top:2px;white-space:nowrap}
   .st-run{background:#E9F4EE;color:#1F7A5A}
   .st-idling{background:#FFF3E3;color:#B86A00}
@@ -519,8 +521,8 @@
         const alert = num(d.idleOverCount) > 0 || num(d.overtime8) > 0;
         const col = document.createElement('div');
         col.className = 'bcol wide' + (alert ? ' alert' : '');
-        col.innerHTML = `<div class="stack" style="height:${Math.max(2, stackH)}px">${inner}</div>
-          <div class="xlab"><b>${it.l1}</b>${it.l2 ? '<br>' + it.l2 : ''}<br><span class="src-pill ${stateClass(d.gpsState)}">${stateText(d.gpsState)}</span></div>`;
+        col.innerHTML = `<div class="barArea"><div class="stack" style="height:${Math.max(2, stackH)}px">${inner}</div></div>
+          <div class="xlab"><b>${it.l1}</b><span class="src-pill ${stateClass(d.gpsState)}">${stateText(d.gpsState)}</span>${it.l2 ? '<span class="driver-name">' + it.l2 + '</span>' : ''}</div>`;
         col.addEventListener('mousemove', e => showTip(e, d, it));
         col.addEventListener('mouseleave', () => { tip.style.opacity = 0; tip.style.visibility = 'hidden'; });
         col.addEventListener('click', () => openDrawer(d, it));
@@ -647,9 +649,9 @@
     reloadAndRender();
   });
 
-  // Auto-refresh ทุก 2 นาที ให้ทัน pollGpsState
+  // โหลดข้อมูลครั้งแรกครั้งเดียว
+  // ตัด auto-refresh ออก เพื่อลดการเด้งขออนุญาตเข้าถึงเครือข่ายซ้ำ
   reloadAndRender();
-  setInterval(reloadAndRender, 120000);
 </script>
 </body>
 </html>
