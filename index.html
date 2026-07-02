@@ -3,9 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>กราฟการวิ่ง/วัน — SSB</title>
+<title>กราฟการวิ่ง/ต้นทุน — SSB</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+
   :root{
     --pine:#1F7A5A; --pine-deep:#13533C; --pine-soft:#EAF3EF;
     --heavy:#1F7A5A; --light:#7FC9A4; --idle:#E9A23B; --over:#C0492F; --stop:#C3CFC9;
@@ -60,7 +61,7 @@
   .stack{width:74%;max-width:42px;border-radius:6px 6px 3px 3px;overflow:hidden;display:flex;flex-direction:column-reverse;transition:filter .12s,transform .12s}
   .bcol:hover .stack{filter:brightness(1.06);transform:translateY(-2px)}
   .bcol.alert .stack{outline:2px solid var(--over);outline-offset:1px}
-  .seg-h{background:var(--heavy)} .seg-l{background:var(--light)} .seg-i{background:var(--idle)} .seg-o{background:var(--over)} .seg-s{background:var(--stop)}
+  .seg-h{background:var(--heavy)} .seg-l{background:var(--light)} .seg-i{background:var(--idle)} .seg-o{background:var(--over)} .seg-s{background:var(--stop)} .seg-heavy{background:#E9A23B} .seg-light{background:#7FC9A4}
   .xlab{font-size:10px;color:var(--ink-faint);margin-top:8px;text-align:center;line-height:1.25;max-width:66px;min-height:58px}
   .xlab b{display:block;color:var(--ink-soft);font-weight:600;white-space:nowrap}
   .xlab .driver-name{display:block;color:var(--ink-faint);font-size:9.5px;line-height:1.18;margin-top:2px;max-height:24px;overflow:hidden}
@@ -124,19 +125,29 @@
   .dwarn{background:#FBEDE9;color:var(--over);border-radius:10px;padding:11px 13px;font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:8px}
   .dgoal{display:flex;align-items:center;justify-content:space-between;background:var(--pine-soft);border-radius:10px;padding:11px 13px;font-size:12.5px}
   .dgoal b{font-family:'IBM Plex Mono',monospace;font-size:15px}
+
+  .mode-note{font-size:11.5px;color:var(--ink-faint);margin-top:4px}
+  .src-order{background:#FFF3E3;color:#B86A00}
+  .src-cost{background:#FBEDE9;color:#C0492F}
+  .src-heavy{background:#FCF4DE;color:#B58A12}
+
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="head">
     <div>
-      <h1>กราฟสถานะรถวันนี้ / DTC</h1>
+      <h1>กราฟสถานะรถ / ระยะทาง / ต้นทุน</h1>
       <div class="sub" id="sub">กำลังโหลดข้อมูลจริงจากระบบ...</div>
+      <div class="mode-note" id="modeNote">เวลาใช้ข้อมูลจาก DTC · ต้นทุนใช้ข้อมูลจาก LOG_Weight</div>
     </div>
     <div class="sp"></div>
     <div class="seg" id="metricSeg">
-      <button data-m="dist">ระยะทาง (กม.)</button>
       <button class="on" data-m="time">เวลา (ชม.)</button>
+      <button data-m="dist">ระยะหนัก/เบา</button>
+      <button data-m="cost">ต้นทุน</button>
+      <button data-m="costUnit">ต้นทุน/หน่วย</button>
+      <button data-m="heavyPct">% วิ่งหนัก</button>
     </div>
   </div>
 
@@ -151,6 +162,8 @@
     <div class="pick">ข้อมูล
       <select id="range">
         <option value="today" selected>วันนี้</option>
+        <option value="7">7 วันล่าสุด</option>
+        <option value="month">เดือนนี้</option>
       </select>
     </div>
   </div>
@@ -158,11 +171,11 @@
   <div id="sortRow" style="display:flex">
     เรียงตาม:
     <div class="seg" id="sortSeg">
-      <button class="on" data-s="time">เวลารวม</button>
+      <button class="on" data-s="main">ค่าหลัก</button>
       <button data-s="dist">ระยะทาง</button>
-      <button data-s="run">เวลาวิ่ง</button>
-      <button data-s="park">จอดดับเครื่อง</button>
-      <button data-s="problem">จอดไม่ดับ/ปัญหา</button>
+      <button data-s="cost">ต้นทุน</button>
+      <button data-s="unit">ต้นทุน/หน่วย</button>
+      <button data-s="heavy">หนัก %</button>
       <button data-s="name">ทะเบียน</button>
     </div>
   </div>
@@ -172,13 +185,7 @@
     <div class="bars-scroll"><div class="bars" id="bars"></div></div>
   </div>
 
-  <div class="legend">
-    <div class="lg"><span class="sw" style="background:var(--heavy)"></span>เวลาวิ่ง</div>
-    <div class="lg"><span class="sw" style="background:var(--idle)"></span>จอดรถไม่ดับเครื่อง</div>
-    <div class="lg"><span class="sw" style="background:var(--stop)"></span>จอดรถดับเครื่อง</div>
-    <div class="lg"><span class="sw" style="background:var(--over)"></span>ไม่ดับเครื่องเกินเกณฑ์</div>
-    <div class="lg" style="margin-left:auto;color:var(--target)"><span class="sw" style="background:var(--target);border-radius:2px;height:3px"></span>เป้าหมาย/วัน</div>
-  </div>
+  <div class="legend" id="legend"></div>
 </div>
 
 <div class="tip" id="tip"></div>
@@ -187,12 +194,15 @@
 
 <script>
   const GAS_URL = 'https://script.google.com/macros/s/AKfycbw4UvKuRrAQ_3Ldm8U0VJqfjfBQUSYaTEdrxkdXUVN98G68XseCquhDeXfMgU8cVYaY/exec';
+
   const TARGET_DIST = 300;
   const TARGET_TIME = 9 * 60;
+  const TARGET_HEAVY_PCT = 70;
 
   let metric = 'time';
   let scope = 'fleet';
-  let sortBy = 'time';
+  let sortBy = 'main';
+  let range = 'today';
 
   let API_ITEMS = [];
   let API_VEHICLES = [];
@@ -202,6 +212,7 @@
   let API_SUMMARY = {};
   let API_ERROR = '';
   let API_LOADING = false;
+  let API_MODE = 'dtc';
 
   const tip = document.getElementById('tip');
 
@@ -210,13 +221,13 @@
     return isFinite(n) ? n : 0;
   }
 
+  function money(n){
+    return num(n).toLocaleString('th-TH', {minimumFractionDigits:0, maximumFractionDigits:2});
+  }
+
   function fmtMin(m){
     m = Math.round(num(m));
     return Math.floor(m / 60) + ':' + String(m % 60).padStart(2,'0');
-  }
-
-  function fmtHour(m){
-    return (num(m) / 60).toFixed(1);
   }
 
   function fmtDateTime(iso){
@@ -224,6 +235,19 @@
     const d = new Date(iso);
     if(isNaN(d)) return '';
     return d.toLocaleString('th-TH', { hour:'2-digit', minute:'2-digit', day:'2-digit', month:'2-digit' });
+  }
+
+  function isOrderMetric(m){
+    return ['dist','cost','costUnit','heavyPct'].includes(m);
+  }
+
+  function metricName(){
+    if(metric === 'time') return 'เวลาใช้งาน';
+    if(metric === 'dist') return 'ระยะหนัก/เบา';
+    if(metric === 'cost') return 'ต้นทุน';
+    if(metric === 'costUnit') return 'ต้นทุน/หน่วย';
+    if(metric === 'heavyPct') return '% วิ่งหนัก';
+    return metric;
   }
 
   function totalTime(d){
@@ -235,7 +259,34 @@
   }
 
   function colHeight(d){
-    return metric === 'dist' ? totalDist(d) : totalTime(d);
+    if(metric === 'time') return totalTime(d);
+    if(metric === 'dist') return totalDist(d);
+    if(metric === 'cost') return num(d.costTotal);
+    if(metric === 'costUnit') return num(d.costPerUnit);
+    if(metric === 'heavyPct') return 100;
+    return 0;
+  }
+
+  function targetValue(){
+    if(metric === 'time') return TARGET_TIME;
+    if(metric === 'dist') return TARGET_DIST;
+    if(metric === 'heavyPct') return TARGET_HEAVY_PCT;
+    return null;
+  }
+
+  function yTickLabel(v){
+    if(metric === 'time') return Math.round(v / 60 * 10) / 10;
+    if(metric === 'cost') return v >= 1000 ? Math.round(v/1000) + 'k' : Math.round(v);
+    if(metric === 'costUnit') return Math.round(v * 10000) / 10000;
+    if(metric === 'heavyPct') return Math.round(v);
+    return Math.round(v);
+  }
+
+  function targetText(){
+    if(metric === 'time') return 'เป้า 9 ชม.';
+    if(metric === 'dist') return 'เป้า 300 กม.';
+    if(metric === 'heavyPct') return 'เป้า ' + TARGET_HEAVY_PCT + '%';
+    return '';
   }
 
   function stateText(s){
@@ -288,7 +339,6 @@
         stopCount: num(x.stopCount),
         overtime4: num(x.overtime4),
         overtime8: num(x.overtime8),
-        totalTimeMin: runMin + idleMin + parkMin,
         src: x.src || 'live'
       };
     });
@@ -296,8 +346,50 @@
     return {
       ok: true,
       source: j.source || 'LOG_DailyCount',
-      mode: j.mode || 'today',
+      mode: 'dtc',
       date: j.date || '',
+      updatedAt: j.updatedAt || '',
+      summary: j.summary || {},
+      items
+    };
+  }
+
+  function normalizeOrderCost(j) {
+    const items = (j.items || []).map(x => {
+      return {
+        date: x.date || '',
+        key: x.key || x.plate || x.orderId || '',
+        orderId: x.orderId || '',
+        orderIds: x.orderIds || [],
+        jobType: x.jobType || '',
+        driverId: x.driverId || '',
+        name: x.driverName || '',
+        plate: x.plate || x.key || '',
+        plates: x.plates || x.plate || '',
+        trips: num(x.trips),
+        orders: num(x.orders),
+        distanceKm: num(x.distanceKm),
+        heavyKm: num(x.heavyKm),
+        lightKm: num(x.lightKm),
+        pctHeavy: x.pctHeavy == null ? null : num(x.pctHeavy),
+        liters: num(x.liters),
+        fuelCost: num(x.fuelCost),
+        otherCost: num(x.otherCost),
+        costTotal: num(x.costTotal),
+        costPerTrip: x.costPerTrip == null ? null : num(x.costPerTrip),
+        qty: num(x.qty),
+        unit: x.unit || '',
+        costPerUnit: x.costPerUnit == null ? null : num(x.costPerUnit),
+        kmPerLiter: x.kmPerLiter == null ? null : num(x.kmPerLiter),
+        src: x.src || 'Log_Weight'
+      };
+    });
+
+    return {
+      ok: true,
+      source: j.source || 'Log_Weight',
+      mode: 'order',
+      date: j.from && j.to ? (j.from + ' ถึง ' + j.to) : '',
       updatedAt: j.updatedAt || '',
       summary: j.summary || {},
       items
@@ -317,18 +409,32 @@
     scope = sel.value;
   }
 
-  async function loadDailyRunChart(){
+  async function loadChart(){
     API_LOADING = true;
     API_ERROR = '';
     render();
 
     try{
       const isFleet = scope === 'fleet';
-      const url = GAS_URL
-        + '?action=getDtcTodayChart'
-        + '&scope=' + encodeURIComponent(isFleet ? 'fleet' : 'plate')
-        + (isFleet ? '' : '&plate=' + encodeURIComponent(scope))
-        + '&t=' + Date.now();
+      const useOrder = isOrderMetric(metric);
+      API_MODE = useOrder ? 'order' : 'dtc';
+
+      let url = '';
+
+      if(useOrder){
+        url = GAS_URL
+          + '?action=getOrderCostChart'
+          + '&range=' + encodeURIComponent(range)
+          + '&group=plate'
+          + (isFleet ? '' : '&plate=' + encodeURIComponent(scope))
+          + '&t=' + Date.now();
+      }else{
+        url = GAS_URL
+          + '?action=getDtcTodayChart'
+          + '&scope=' + encodeURIComponent(isFleet ? 'fleet' : 'plate')
+          + (isFleet ? '' : '&plate=' + encodeURIComponent(scope))
+          + '&t=' + Date.now();
+      }
 
       const r = await fetch(url, { cache:'no-store' });
       const text = await r.text();
@@ -344,17 +450,18 @@
         throw new Error((j && j.error) || 'โหลดข้อมูลไม่สำเร็จ');
       }
 
-      const dtc = normalizeDtcToday(j);
-      API_ITEMS = dtc.items || [];
+      const data = useOrder ? normalizeOrderCost(j) : normalizeDtcToday(j);
+
+      API_ITEMS = data.items || [];
       API_VEHICLES = Array.from(new Set(API_ITEMS.map(x => x.plate).filter(Boolean)));
-      API_SOURCE = dtc.source || '';
-      API_DATE = dtc.date || '';
-      API_UPDATED = dtc.updatedAt || '';
-      API_SUMMARY = dtc.summary || {};
+      API_SOURCE = data.source || '';
+      API_DATE = data.date || '';
+      API_UPDATED = data.updatedAt || '';
+      API_SUMMARY = data.summary || {};
       syncScopeOptions();
 
     }catch(e){
-      console.error('loadDailyRunChart error', e);
+      console.error('loadChart error', e);
       API_ITEMS = [];
       API_ERROR = e && e.message ? e.message : String(e);
     }
@@ -364,19 +471,29 @@
   }
 
   function toChartItem(x){
+    const useOrder = API_MODE === 'order';
     return {
-      l1: x.plate || x.driverId || '—',
-      l2: x.name || '',
-      src: x.src || 'live',
+      l1: x.plate || x.driverId || x.key || '—',
+      l2: x.name || x.driverName || '',
+      src: x.src || (useOrder ? 'Log_Weight' : 'live'),
       d: {
         date: x.date || '',
+        key: x.key || '',
+        orderId: x.orderId || '',
+        orderIds: x.orderIds || [],
+        jobType: x.jobType || '',
         driverId: x.driverId || '',
         plate: x.plate || '',
         plates: x.plates || '',
         driverName: x.name || '',
         vehicleType: x.vehicleType || '',
         gpsState: x.gpsState || '',
+
         distanceKm: num(x.distanceKm),
+        heavyKm: num(x.heavyKm),
+        lightKm: num(x.lightKm),
+        pctHeavy: x.pctHeavy == null ? null : num(x.pctHeavy),
+
         runMin: num(x.runMin),
         idleMin: num(x.idleMin),
         parkMin: num(x.parkMin),
@@ -385,9 +502,31 @@
         stopCount: num(x.stopCount),
         overtime4: num(x.overtime4),
         overtime8: num(x.overtime8),
-        src: x.src || 'live'
+
+        trips: num(x.trips),
+        orders: num(x.orders),
+        liters: num(x.liters),
+        fuelCost: num(x.fuelCost),
+        otherCost: num(x.otherCost),
+        costTotal: num(x.costTotal),
+        costPerTrip: x.costPerTrip == null ? null : num(x.costPerTrip),
+        qty: num(x.qty),
+        unit: x.unit || '',
+        costPerUnit: x.costPerUnit == null ? null : num(x.costPerUnit),
+        kmPerLiter: x.kmPerLiter == null ? null : num(x.kmPerLiter),
+
+        src: x.src || (useOrder ? 'Log_Weight' : 'live')
       }
     };
+  }
+
+  function mainValue(d){
+    if(metric === 'time') return totalTime(d);
+    if(metric === 'dist') return num(d.distanceKm);
+    if(metric === 'cost') return num(d.costTotal);
+    if(metric === 'costUnit') return num(d.costPerUnit);
+    if(metric === 'heavyPct') return num(d.pctHeavy);
+    return 0;
   }
 
   function buildSeries(){
@@ -395,103 +534,195 @@
 
     if(sortBy === 'dist'){
       items.sort((a,b)=>num(b.d.distanceKm)-num(a.d.distanceKm));
-    }else if(sortBy === 'run'){
-      items.sort((a,b)=>num(b.d.runMin)-num(a.d.runMin));
-    }else if(sortBy === 'park'){
-      items.sort((a,b)=>num(b.d.parkMin)-num(a.d.parkMin));
-    }else if(sortBy === 'problem'){
-      items.sort((a,b)=>(num(b.d.idleOverCount)*1000 + num(b.d.idleMin)) - (num(a.d.idleOverCount)*1000 + num(a.d.idleMin)));
+    }else if(sortBy === 'cost'){
+      items.sort((a,b)=>num(b.d.costTotal)-num(a.d.costTotal));
+    }else if(sortBy === 'unit'){
+      items.sort((a,b)=>num(b.d.costPerUnit)-num(a.d.costPerUnit));
+    }else if(sortBy === 'heavy'){
+      items.sort((a,b)=>num(b.d.pctHeavy)-num(a.d.pctHeavy));
     }else if(sortBy === 'name'){
       items.sort((a,b)=>String(a.d.plate).localeCompare(String(b.d.plate), 'th'));
     }else{
-      items.sort((a,b)=>totalTime(b.d)-totalTime(a.d));
+      items.sort((a,b)=>mainValue(b.d)-mainValue(a.d));
     }
 
     return { perVehicle:true, items };
   }
 
+  function splitByHeavyLight(value, d){
+    const heavy = num(d.heavyKm);
+    const light = num(d.lightKm);
+    const totalKm = heavy + light;
+
+    if(value <= 0) return [];
+    if(totalKm <= 0) return [['seg-heavy', value]];
+
+    return [
+      ['seg-heavy', value * heavy / totalKm],
+      ['seg-light', value * light / totalKm]
+    ];
+  }
+
   function segs(d){
-    const runMin  = num(d.runMin);
-    const idleMin = num(d.idleMin);
-    const parkMin = num(d.parkMin);
-  
-    // โหมดระยะทาง:
-    // ความสูงแท่ง = ระยะทางจริง
-    // สีในแท่ง = สัดส่วนเวลาของคันนั้น
-    if(metric === 'dist'){
-      const dist = num(d.distanceKm);
-      const totalMin = runMin + idleMin + parkMin;
-  
-      // ถ้ามีระยะทาง แต่ยังไม่มีเวลา ให้แสดงเขียวเต็มแท่งก่อน
-      if(dist > 0 && totalMin <= 0){
-        return [
-          ['seg-h', dist]
-        ];
-      }
-  
-      // ถ้าไม่มีระยะทาง ก็ไม่ต้องวาด
-      if(dist <= 0){
-        return [];
-      }
-  
-      const runPart  = dist * (runMin  / totalMin);
-      const idlePart = dist * (idleMin / totalMin);
-      const parkPart = dist * (parkMin / totalMin);
-  
+    if(metric === 'time'){
       return [
-        ['seg-h', runPart],   // เขียว = เวลาวิ่ง
-        ['seg-i', idlePart],  // ส้ม = จอดไม่ดับเครื่อง
-        ['seg-s', parkPart]   // เทา = จอดดับเครื่อง
+        ['seg-h', num(d.runMin)],
+        ['seg-i', num(d.idleMin)],
+        ['seg-s', num(d.parkMin)]
       ];
     }
-  
-    // โหมดเวลา:
-    // ความสูงแท่ง = เวลารวม
-    // สีในแท่ง = นาทีจริง
-    return [
-      ['seg-h', runMin],
-      ['seg-i', idleMin],
-      ['seg-s', parkMin]
-    ];
+
+    if(metric === 'dist'){
+      return [
+        ['seg-heavy', num(d.heavyKm)],
+        ['seg-light', num(d.lightKm)]
+      ];
+    }
+
+    if(metric === 'cost'){
+      return splitByHeavyLight(num(d.costTotal), d);
+    }
+
+    if(metric === 'costUnit'){
+      return splitByHeavyLight(num(d.costPerUnit), d);
+    }
+
+    if(metric === 'heavyPct'){
+      const pct = Math.max(0, Math.min(100, num(d.pctHeavy)));
+      return [
+        ['seg-heavy', pct],
+        ['seg-light', Math.max(0, 100 - pct)]
+      ];
+    }
+
+    return [];
+  }
+
+  function renderLegend(){
+    const el = document.getElementById('legend');
+
+    if(API_MODE === 'order'){
+      el.innerHTML = `
+        <div class="lg"><span class="sw seg-heavy"></span>ระยะหนัก / บรรทุก</div>
+        <div class="lg"><span class="sw seg-light"></span>ระยะเบา / รถเปล่า</div>
+        <div class="lg"><span class="sw" style="background:var(--target);border-radius:2px;height:3px"></span>เป้าหมาย/วัน</div>
+        <div class="lg" style="margin-left:auto;color:var(--ink-faint)">ข้อมูลจาก LOG_Weight</div>`;
+      return;
+    }
+
+    el.innerHTML = `
+      <div class="lg"><span class="sw" style="background:var(--heavy)"></span>เวลาวิ่ง</div>
+      <div class="lg"><span class="sw" style="background:var(--idle)"></span>จอดรถไม่ดับเครื่อง</div>
+      <div class="lg"><span class="sw" style="background:var(--stop)"></span>จอดรถดับเครื่อง</div>
+      <div class="lg"><span class="sw" style="background:var(--over)"></span>ไม่ดับเครื่องเกินเกณฑ์</div>
+      <div class="lg" style="margin-left:auto;color:var(--target)"><span class="sw" style="background:var(--target);border-radius:2px;height:3px"></span>เป้าหมาย/วัน</div>`;
   }
 
   function renderKPI(series){
     const items = series.items.map(x => x.d);
-    const totalDistKm = items.reduce((s,d)=>s+num(d.distanceKm),0);
-    const distVehicles = items.filter(d => num(d.distanceKm) > 0).length;
-    const reachedDist = items.filter(d => num(d.distanceKm) >= TARGET_DIST).length;
+    const totalVehicles = items.length || 0;
+
+    if(API_MODE === 'order'){
+      const s = API_SUMMARY || {};
+      const unit = s.unit || (items.find(d=>d.unit)||{}).unit || 'หน่วย';
+
+      if(metric === 'cost'){
+        document.getElementById('kpis').innerHTML = `
+          <div class="kpi">
+            <div class="kt">💰 ต้นทุนรวม</div>
+            <span class="kpct pct-good">${num(s.trips)} เที่ยว</span>
+            <div class="kv">${money(s.costTotal)}<span class="ku"> บาท</span></div>
+            <div class="kbar" style="width:100%;background:var(--over)"></div>
+          </div>
+          <div class="kpi">
+            <div class="kt">🚚 ต้นทุนเฉลี่ย/เที่ยว</div>
+            <span class="kpct pct-mid">${num(s.orders)} ออเดอร์</span>
+            <div class="kv">${money(s.costPerTrip)}<span class="ku"> บาท</span></div>
+            <div class="kbar" style="width:70%;background:var(--idle)"></div>
+          </div>
+          <div class="kpi">
+            <div class="kt">⚖️ ต้นทุน/หน่วย</div>
+            <span class="kpct pct-good">${unit}</span>
+            <div class="kv">${num(s.costPerUnit).toFixed(4)}<span class="ku"> บาท/${unit}</span></div>
+            <div class="kbar" style="width:50%;background:var(--pine)"></div>
+          </div>`;
+        return;
+      }
+
+      if(metric === 'costUnit'){
+        document.getElementById('kpis').innerHTML = `
+          <div class="kpi">
+            <div class="kt">⚖️ ต้นทุนเฉลี่ย/หน่วย</div>
+            <span class="kpct pct-good">${unit}</span>
+            <div class="kv">${num(s.costPerUnit).toFixed(4)}<span class="ku"> บาท/${unit}</span></div>
+            <div class="kbar" style="width:70%;background:var(--pine)"></div>
+          </div>
+          <div class="kpi">
+            <div class="kt">📦 ปริมาณรวม</div>
+            <span class="kpct pct-good">${num(s.trips)} เที่ยว</span>
+            <div class="kv">${Math.round(num(s.qty)).toLocaleString('th-TH')}<span class="ku"> ${unit}</span></div>
+            <div class="kbar" style="width:80%;background:var(--light)"></div>
+          </div>
+          <div class="kpi">
+            <div class="kt">💰 ต้นทุนรวม</div>
+            <span class="kpct pct-mid">${num(s.orders)} ออเดอร์</span>
+            <div class="kv">${money(s.costTotal)}<span class="ku"> บาท</span></div>
+            <div class="kbar" style="width:100%;background:var(--over)"></div>
+          </div>`;
+        return;
+      }
+
+      if(metric === 'heavyPct'){
+        document.getElementById('kpis').innerHTML = `
+          <div class="kpi">
+            <div class="kt">🏋️ % วิ่งหนักเฉลี่ย</div>
+            <span class="kpct ${num(s.pctHeavy)>=TARGET_HEAVY_PCT?'pct-good':'pct-mid'}">เป้า ${TARGET_HEAVY_PCT}%</span>
+            <div class="kv">${num(s.pctHeavy).toFixed(1)}<span class="ku"> %</span></div>
+            <div class="kbar" style="width:${Math.min(100,num(s.pctHeavy))}%;background:var(--idle)"></div>
+          </div>
+          <div class="kpi">
+            <div class="kt">🟠 ระยะหนัก</div>
+            <span class="kpct pct-good">${num(s.trips)} เที่ยว</span>
+            <div class="kv">${Math.round(num(s.heavyKm)).toLocaleString('th-TH')}<span class="ku"> กม.</span></div>
+            <div class="kbar" style="width:${Math.min(100,num(s.pctHeavy))}%;background:#E9A23B"></div>
+          </div>
+          <div class="kpi">
+            <div class="kt">🟢 ระยะเบา</div>
+            <span class="kpct pct-mid">${Math.max(0,100-num(s.pctHeavy)).toFixed(1)}%</span>
+            <div class="kv">${Math.round(num(s.lightKm)).toLocaleString('th-TH')}<span class="ku"> กม.</span></div>
+            <div class="kbar" style="width:${Math.max(0,100-num(s.pctHeavy))}%;background:#7FC9A4"></div>
+          </div>`;
+        return;
+      }
+
+      document.getElementById('kpis').innerHTML = `
+        <div class="kpi">
+          <div class="kt">📍 ระยะทางรวม</div>
+          <span class="kpct pct-good">${num(s.trips)} เที่ยว</span>
+          <div class="kv">${Math.round(num(s.distanceKm)).toLocaleString('th-TH')}<span class="ku"> กม.</span></div>
+          <div class="kbar" style="width:100%;background:var(--pine)"></div>
+        </div>
+        <div class="kpi">
+          <div class="kt">🟠 ระยะหนัก</div>
+          <span class="kpct pct-mid">${num(s.pctHeavy).toFixed(1)}%</span>
+          <div class="kv">${Math.round(num(s.heavyKm)).toLocaleString('th-TH')}<span class="ku"> กม.</span></div>
+          <div class="kbar" style="width:${Math.min(100,num(s.pctHeavy))}%;background:#E9A23B"></div>
+        </div>
+        <div class="kpi">
+          <div class="kt">🟢 ระยะเบา</div>
+          <span class="kpct pct-good">${Math.max(0,100-num(s.pctHeavy)).toFixed(1)}%</span>
+          <div class="kv">${Math.round(num(s.lightKm)).toLocaleString('th-TH')}<span class="ku"> กม.</span></div>
+          <div class="kbar" style="width:${Math.max(0,100-num(s.pctHeavy))}%;background:#7FC9A4"></div>
+        </div>`;
+      return;
+    }
+
     const totalRun = items.reduce((s,d)=>s+num(d.runMin),0);
     const totalIdle = items.reduce((s,d)=>s+num(d.idleMin),0);
     const totalPark = items.reduce((s,d)=>s+num(d.parkMin),0);
     const totalIdleOver = items.reduce((s,d)=>s+num(d.idleOverCount),0);
     const runningVehicles = items.filter(d => num(d.runMin) > 0).length;
-    const totalVehicles = items.length || 0;
     const runPct = totalVehicles ? Math.round(runningVehicles / totalVehicles * 100) : 0;
-    const reachedPct = totalVehicles ? Math.round(reachedDist / totalVehicles * 100) : 0;
-    const avgDist = distVehicles ? Math.round(totalDistKm / distVehicles) : 0;
-
-    if(metric === 'dist'){
-      document.getElementById('kpis').innerHTML = `
-        <div class="kpi">
-          <div class="kt">📍 ระยะทางรวม</div>
-          <span class="kpct pct-good">${distVehicles}/${totalVehicles} คัน</span>
-          <div class="kv">${Math.round(totalDistKm).toLocaleString()}<span class="ku"> กม.</span></div>
-          <div class="kbar" style="width:${Math.min(100, totalDistKm ? 100 : 0)}%;background:var(--heavy)"></div>
-        </div>
-        <div class="kpi">
-          <div class="kt">📊 เฉลี่ยระยะทาง</div>
-          <span class="kpct ${avgDist >= TARGET_DIST ? 'pct-good' : avgDist >= 200 ? 'pct-mid' : 'pct-bad'}">เป้า ${TARGET_DIST} กม.</span>
-          <div class="kv">${avgDist.toLocaleString()}<span class="ku"> กม./คัน</span></div>
-          <div class="kbar" style="width:${Math.min(100, Math.round(avgDist / TARGET_DIST * 100))}%;background:var(--pine)"></div>
-        </div>
-        <div class="kpi">
-          <div class="kt">🎯 คันที่ถึงเป้า</div>
-          <span class="kpct ${reachedPct>=70?'pct-good':reachedPct>=40?'pct-mid':'pct-bad'}">${reachedPct}%</span>
-          <div class="kv">${reachedDist}<span class="ku">/${totalVehicles} คัน</span></div>
-          <div class="kbar" style="width:${reachedPct}%;background:${reachedPct>=70?'var(--pine)':reachedPct>=40?'var(--idle)':'var(--over)'}"></div>
-        </div>`;
-      return;
-    }
 
     document.getElementById('kpis').innerHTML = `
       <div class="kpi">
@@ -517,46 +748,62 @@
   function render(){
     const series = buildSeries();
     renderKPI(series);
+    renderLegend();
+
     const items = series.items;
     const H = 300;
-    const target = metric === 'dist' ? TARGET_DIST : TARGET_TIME;
-    const maxV = Math.max(...items.map(x => colHeight(x.d)), target) * 1.12;
+    const tv = targetValue();
+    let maxV = Math.max(...items.map(x => colHeight(x.d)), tv || 0, 1) * 1.12;
+
+    if(metric === 'heavyPct') maxV = 112;
 
     const grid = document.getElementById('grid');
     grid.innerHTML = '';
+
     for(let i=0; i<=4; i++){
-      const val = Math.round(maxV * i / 4);
+      const val = maxV * i / 4;
       const y = H - (val / maxV * H);
       grid.insertAdjacentHTML('beforeend',
         `<div class="gridline" style="top:${18+y}px"></div>
-         <div class="ytick" style="top:${18+y}px">${metric === 'dist' ? val : Math.round(val/60*10)/10}</div>`);
+         <div class="ytick" style="top:${18+y}px">${yTickLabel(val)}</div>`);
     }
 
-    const ty = H - (target / maxV * H);
-    grid.insertAdjacentHTML('beforeend',
-      `<div class="target-line" style="top:${18+ty}px"></div>
-       <div class="target-tag" style="top:${18+ty}px">เป้า ${metric === 'dist' ? target + ' กม.' : Math.round(target/60) + ' ชม.'}</div>`);
+    if(tv != null){
+      const ty = H - (tv / maxV * H);
+      grid.insertAdjacentHTML('beforeend',
+        `<div class="target-line" style="top:${18+ty}px"></div>
+         <div class="target-tag" style="top:${18+ty}px">${targetText()}</div>`);
+    }
 
     const bars = document.getElementById('bars');
     bars.innerHTML = '';
 
     if(API_LOADING){
-      bars.innerHTML = '<div style="height:300px;width:100%;display:grid;place-items:center;color:var(--ink-faint);font-size:13px">กำลังโหลดข้อมูล DTC วันนี้...</div>';
+      bars.innerHTML = '<div style="height:300px;width:100%;display:grid;place-items:center;color:var(--ink-faint);font-size:13px">กำลังโหลดข้อมูล...</div>';
     }else if(API_ERROR){
       bars.innerHTML = `<div style="height:300px;width:100%;display:grid;place-items:center;color:var(--over);font-size:13px;text-align:center;line-height:1.7">โหลดข้อมูลไม่สำเร็จ<br>${API_ERROR}</div>`;
     }else if(!items.length){
-      bars.innerHTML = '<div style="height:300px;width:100%;display:grid;place-items:center;color:var(--ink-faint);font-size:13px;text-align:center;line-height:1.7">ยังไม่มีข้อมูลวันนี้<br>เช็ก LOG_DailyCount / pollGpsState</div>';
+      const msg = API_MODE === 'order'
+        ? 'ยังไม่มีข้อมูลใน LOG_Weight ตามช่วงวันที่นี้<br>ลองเลือก 7 วันล่าสุด หรือ เดือนนี้'
+        : 'ยังไม่มีข้อมูลวันนี้<br>เช็ก LOG_DailyCount / pollGpsState';
+      bars.innerHTML = `<div style="height:300px;width:100%;display:grid;place-items:center;color:var(--ink-faint);font-size:13px;text-align:center;line-height:1.7">${msg}</div>`;
     }else{
       items.forEach(it => {
         const d = it.d;
         const total = colHeight(d);
         const stackH = total / maxV * H;
         const inner = segs(d).map(([c,v]) => v > 0 ? `<div class="${c}" style="height:${v/(total||1)*100}%"></div>` : '').join('');
-        const alert = num(d.idleOverCount) > 0 || num(d.overtime8) > 0;
+        const alert = API_MODE === 'dtc' && (num(d.idleOverCount) > 0 || num(d.overtime8) > 0);
         const col = document.createElement('div');
         col.className = 'bcol wide' + (alert ? ' alert' : '');
+
+        const pill = API_MODE === 'order'
+          ? `<span class="src-pill src-order">${num(d.trips)} เที่ยว</span>`
+          : `<span class="src-pill ${stateClass(d.gpsState)}">${stateText(d.gpsState)}</span>`;
+
         col.innerHTML = `<div class="barArea"><div class="stack" style="height:${Math.max(2, stackH)}px">${inner}</div></div>
-          <div class="xlab"><b>${it.l1}</b><span class="src-pill ${stateClass(d.gpsState)}">${stateText(d.gpsState)}</span>${it.l2 ? '<span class="driver-name">' + it.l2 + '</span>' : ''}</div>`;
+          <div class="xlab"><b>${it.l1}</b>${pill}${it.l2 ? '<span class="driver-name">' + it.l2 + '</span>' : ''}</div>`;
+
         col.addEventListener('mousemove', e => showTip(e, d, it));
         col.addEventListener('mouseleave', () => { tip.style.opacity = 0; tip.style.visibility = 'hidden'; });
         col.addEventListener('click', () => openDrawer(d, it));
@@ -567,25 +814,53 @@
     const scopeTxt = scope === 'fleet' ? 'ทั้งฟลีต' : ('รถ ' + scope);
     const updated = API_UPDATED ? ' · อัปเดต ' + fmtDateTime(API_UPDATED) : '';
     const srcTxt = API_SOURCE ? ' · ' + API_SOURCE : '';
-    document.getElementById('sub').textContent = scopeTxt + ' · วันนี้ · ' + (metric === 'dist' ? 'ระยะทาง' : 'เวลาใช้งาน') + 'จาก DTC' + srcTxt + updated;
+    const rangeTxt = API_MODE === 'order' ? (document.getElementById('range').selectedOptions[0].textContent) : 'วันนี้';
+
+    document.getElementById('sub').textContent =
+      scopeTxt + ' · ' + rangeTxt + ' · ' + metricName() + srcTxt + updated;
+
+    document.getElementById('modeNote').textContent =
+      API_MODE === 'order'
+        ? 'แท่งสูงตามค่าที่เลือก · สีส้ม=ระยะหนัก / สีเขียวอ่อน=ระยะเบา · ข้อมูลจาก LOG_Weight'
+        : 'แท่งเวลาใช้ข้อมูลสดจาก DTC / LOG_DailyCount · สีเขียว=วิ่ง สีส้ม=จอดไม่ดับ สีเทา=จอดดับ';
   }
 
   function showTip(e, d, it){
-    const total = totalTime(d);
     const title = (d.plate ? d.plate + ' · ' : '') + (d.driverName || it.l2 || d.driverId);
-    tip.innerHTML = `
-      <h4>${title}<span class="day">${stateBadge(d.gpsState)}</span></h4>
-      ${metric === 'dist' ? `<div class="trow"><span class="sw seg-h"></span>ระยะทางวันนี้<span class="v">${Math.round(num(d.distanceKm)).toLocaleString()} กม.</span></div>` : `<div class="trow"><span class="sw seg-h"></span>เวลาวิ่ง<span class="v">${fmtMin(d.runMin)} ชม.</span></div>`}
-      <div class="trow"><span class="sw seg-i"></span>จอดรถไม่ดับเครื่อง<span class="v">${fmtMin(d.idleMin)} ชม.</span></div>
-      <div class="trow"><span class="sw seg-s"></span>จอดรถดับเครื่อง<span class="v">${fmtMin(d.parkMin)} ชม.</span></div>
-      <div class="div"></div>
-      ${metric === 'dist' ? `<div class="big">เทียบเป้า ${TARGET_DIST} กม.<b>${Math.min(100, Math.round(num(d.distanceKm) / TARGET_DIST * 100))}%</b></div>` : `<div class="big">เวลารวมวันนี้<b>${fmtMin(total)} ชม.</b></div>`}
-      <div class="kpi2">
-        <div class="kc"><div class="kv">${num(d.idleCount)}</div><div class="kl">ครั้งจอดไม่ดับ</div></div>
-        <div class="kc"><div class="kv">${num(d.idleOverCount)}</div><div class="kl">เกินเกณฑ์</div></div>
-        <div class="kc"><div class="kv">${num(d.stopCount)}</div><div class="kl">ครั้งจอดดับ</div></div>
-      </div>
-      ${(num(d.idleOverCount)>0 || num(d.overtime8)>0) ? `<div class="warn">⚠️ ${num(d.overtime8)>0?'ขับเกิน 8 ชม. · ':''}จอดรถไม่ดับเครื่องเกินเกณฑ์ ${num(d.idleOverCount)} ครั้ง</div>` : ''}`;
+
+    if(API_MODE === 'order'){
+      const unit = d.unit || 'หน่วย';
+      tip.innerHTML = `
+        <h4>${title}<span class="day">${d.trips} เที่ยว</span></h4>
+        <div class="trow"><span class="sw seg-heavy"></span>ระยะหนัก<span class="v">${num(d.heavyKm).toLocaleString('th-TH')} กม.</span></div>
+        <div class="trow"><span class="sw seg-light"></span>ระยะเบา<span class="v">${num(d.lightKm).toLocaleString('th-TH')} กม.</span></div>
+        <div class="trow"><span class="sw" style="background:var(--pine)"></span>ระยะรวม<span class="v">${num(d.distanceKm).toLocaleString('th-TH')} กม.</span></div>
+        <div class="div"></div>
+        <div class="big">% วิ่งหนัก<b>${num(d.pctHeavy).toFixed(1)}%</b></div>
+        <div class="kpi2">
+          <div class="kc"><div class="kv">${money(d.costTotal)}</div><div class="kl">ต้นทุนรวม</div></div>
+          <div class="kc"><div class="kv">${num(d.costPerUnit).toFixed(4)}</div><div class="kl">บาท/${unit}</div></div>
+          <div class="kc"><div class="kv">${num(d.kmPerLiter).toFixed(2)}</div><div class="kl">กม./ลิตร</div></div>
+        </div>
+        <div class="trow" style="margin-top:8px">ออเดอร์<span class="v">${d.orders || (d.orderIds||[]).length}</span></div>
+        <div class="trow">ปริมาณ<span class="v">${Math.round(num(d.qty)).toLocaleString('th-TH')} ${unit}</span></div>`;
+    }else{
+      const total = totalTime(d);
+      tip.innerHTML = `
+        <h4>${title}<span class="day">${stateBadge(d.gpsState)}</span></h4>
+        <div class="trow"><span class="sw seg-h"></span>เวลาวิ่ง<span class="v">${fmtMin(d.runMin)} ชม.</span></div>
+        <div class="trow"><span class="sw seg-i"></span>จอดรถไม่ดับเครื่อง<span class="v">${fmtMin(d.idleMin)} ชม.</span></div>
+        <div class="trow"><span class="sw seg-s"></span>จอดรถดับเครื่อง<span class="v">${fmtMin(d.parkMin)} ชม.</span></div>
+        <div class="div"></div>
+        <div class="big">เวลารวมวันนี้<b>${fmtMin(total)} ชม.</b></div>
+        <div class="kpi2">
+          <div class="kc"><div class="kv">${num(d.idleCount)}</div><div class="kl">ครั้งจอดไม่ดับ</div></div>
+          <div class="kc"><div class="kv">${num(d.idleOverCount)}</div><div class="kl">เกินเกณฑ์</div></div>
+          <div class="kc"><div class="kv">${num(d.stopCount)}</div><div class="kl">ครั้งจอดดับ</div></div>
+        </div>
+        ${(num(d.idleOverCount)>0 || num(d.overtime8)>0) ? `<div class="warn">⚠️ ${num(d.overtime8)>0?'ขับเกิน 8 ชม. · ':''}จอดรถไม่ดับเครื่องเกินเกณฑ์ ${num(d.idleOverCount)} ครั้ง</div>` : ''}`;
+    }
+
     tip.style.opacity = 1;
     tip.style.visibility = 'visible';
     let x = e.clientX + 16, y = e.clientY - 10;
@@ -597,53 +872,101 @@
   }
 
   function openDrawer(d, it){
-    const total = totalTime(d);
     const title = (d.plate ? d.plate + ' · ' : '') + (d.driverName || it.l2 || d.driverId);
-    const sum = total || 1;
-    const seg = (v,c) => v > 0 ? `<div class="${c}" style="width:${v/sum*100}%"></div>` : '';
 
-    document.getElementById('drawer').innerHTML = `
-      <div class="dh">
-        <button class="x" onclick="closeDrawer()">×</button>
-        <span class="dbadge">${stateBadge(d.gpsState)}</span>
-        <div class="dname">${title}</div>
-        <div class="dmeta">${d.driverId || ''} · ${d.vehicleType || ''} · ${d.date || API_DATE || ''}</div>
-      </div>
-      <div class="dbody">
-        <div class="dsec">
-          <h3>📊 สัดส่วนเวลาวันนี้</h3>
-          <div class="dbar-wrap">
-            <div class="dbar-track">${seg(num(d.runMin),'seg-h')}${seg(num(d.idleMin),'seg-i')}${seg(num(d.parkMin),'seg-s')}</div>
-            <div class="dbar-leg">
-              <span class="l"><span class="sw seg-h"></span>เวลาวิ่ง <b>${fmtMin(d.runMin)} ชม.</b></span>
-              <span class="l"><span class="sw seg-i"></span>จอดไม่ดับ <b>${fmtMin(d.idleMin)} ชม.</b></span>
-              <span class="l"><span class="sw seg-s"></span>จอดดับ <b>${fmtMin(d.parkMin)} ชม.</b></span>
+    if(API_MODE === 'order'){
+      const unit = d.unit || 'หน่วย';
+      const sumKm = num(d.heavyKm) + num(d.lightKm) || 1;
+      const seg = (v,c) => v > 0 ? `<div class="${c}" style="width:${v/sumKm*100}%"></div>` : '';
+
+      document.getElementById('drawer').innerHTML = `
+        <div class="dh">
+          <button class="x" onclick="closeDrawer()">×</button>
+          <span class="dbadge">LOG_Weight · ${d.trips} เที่ยว</span>
+          <div class="dname">${title}</div>
+          <div class="dmeta">${d.driverId || ''} · ${d.jobType || ''} · ${API_DATE || ''}</div>
+        </div>
+        <div class="dbody">
+          <div class="dsec">
+            <h3>🟠🟢 สัดส่วนระยะหนัก / เบา</h3>
+            <div class="dbar-wrap">
+              <div class="dbar-track">${seg(num(d.heavyKm),'seg-heavy')}${seg(num(d.lightKm),'seg-light')}</div>
+              <div class="dbar-leg">
+                <span class="l"><span class="sw seg-heavy"></span>หนัก <b>${num(d.heavyKm).toLocaleString('th-TH')} กม.</b></span>
+                <span class="l"><span class="sw seg-light"></span>เบา <b>${num(d.lightKm).toLocaleString('th-TH')} กม.</b></span>
+                <span class="l">% หนัก <b>${num(d.pctHeavy).toFixed(1)}%</b></span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div class="dsec">
-          <h3>🧾 รายละเอียด</h3>
-          <div class="dmetrics">
-            <div class="dm"><div class="v">${Math.round(num(d.distanceKm)).toLocaleString()}</div><div class="l">ระยะทางวันนี้ (กม.)</div></div>
-            <div class="dm"><div class="v">${fmtMin(total)}</div><div class="l">เวลารวมวันนี้ (ชม.)</div></div>
-            <div class="dm"><div class="v">${fmtMin(d.runMin)}</div><div class="l">เวลาวิ่ง (ชม.)</div></div>
-            <div class="dm"><div class="v">${fmtMin(d.idleMin)}</div><div class="l">จอดรถไม่ดับเครื่อง</div></div>
-            <div class="dm"><div class="v">${fmtMin(d.parkMin)}</div><div class="l">จอดรถดับเครื่อง</div></div>
-            <div class="dm"><div class="v">${num(d.idleCount)}</div><div class="l">จำนวนครั้งจอดไม่ดับ</div></div>
-            <div class="dm"><div class="v">${num(d.stopCount)}</div><div class="l">จำนวนครั้งจอดดับ</div></div>
-            <div class="dm"><div class="v">${num(d.idleOverCount)}</div><div class="l">ไม่ดับเครื่องเกินเกณฑ์</div></div>
-            <div class="dm"><div class="v">${num(d.overtime8)}</div><div class="l">ขับเกิน 8 ชม.</div></div>
+          <div class="dsec">
+            <h3>💰 ต้นทุน / ประสิทธิภาพ</h3>
+            <div class="dmetrics">
+              <div class="dm"><div class="v">${money(d.costTotal)}</div><div class="l">ต้นทุนรวม (บาท)</div></div>
+              <div class="dm"><div class="v">${money(d.costPerTrip)}</div><div class="l">ต้นทุน/เที่ยว</div></div>
+              <div class="dm"><div class="v">${num(d.costPerUnit).toFixed(4)}</div><div class="l">บาท/${unit}</div></div>
+              <div class="dm"><div class="v">${num(d.kmPerLiter).toFixed(2)}</div><div class="l">กม./ลิตร</div></div>
+              <div class="dm"><div class="v">${Math.round(num(d.qty)).toLocaleString('th-TH')}</div><div class="l">ปริมาณ (${unit})</div></div>
+              <div class="dm"><div class="v">${num(d.liters).toLocaleString('th-TH')}</div><div class="l">น้ำมันรวม (ลิตร)</div></div>
+              <div class="dm"><div class="v">${money(d.fuelCost)}</div><div class="l">ค่าน้ำมัน</div></div>
+              <div class="dm"><div class="v">${money(d.otherCost)}</div><div class="l">ค่าใช้จ่ายอื่น</div></div>
+            </div>
           </div>
-        </div>
 
-        <div class="dsec">
-          <h3>🎯 เทียบเป้าหมายระยะทาง</h3>
-          <div class="dgoal"><span>${num(d.distanceKm) >= TARGET_DIST ? '✅ ถึงเป้า' : '⚠️ ยังไม่ถึงเป้า'} (${TARGET_DIST} กม./วัน)</span><b style="color:${num(d.distanceKm) >= TARGET_DIST ? 'var(--pine)' : 'var(--over)'}">${Math.min(100, Math.round(num(d.distanceKm) / TARGET_DIST * 100))}%</b></div>
-        </div>
+          <div class="dsec">
+            <h3>🧾 ออเดอร์</h3>
+            <div class="dgoal"><span>${(d.orderIds||[]).join(', ') || d.orderId || '—'}</span><b>${d.orders || (d.orderIds||[]).length}</b></div>
+          </div>
+        </div>`;
+    }else{
+      const total = totalTime(d);
+      const sum = total || 1;
+      const seg = (v,c) => v > 0 ? `<div class="${c}" style="width:${v/sum*100}%"></div>` : '';
 
-        ${(num(d.idleOverCount)>0 || num(d.overtime8)>0) ? `<div class="dwarn">⚠️ ${num(d.overtime8)>0?'ขับเกิน 8 ชม. · ':''}จอดรถไม่ดับเครื่องเกินเกณฑ์ ${num(d.idleOverCount)} ครั้ง</div>` : ''}
-      </div>`;
+      document.getElementById('drawer').innerHTML = `
+        <div class="dh">
+          <button class="x" onclick="closeDrawer()">×</button>
+          <span class="dbadge">${stateBadge(d.gpsState)}</span>
+          <div class="dname">${title}</div>
+          <div class="dmeta">${d.driverId || ''} · ${d.vehicleType || ''} · ${d.date || API_DATE || ''}</div>
+        </div>
+        <div class="dbody">
+          <div class="dsec">
+            <h3>📊 สัดส่วนเวลาวันนี้</h3>
+            <div class="dbar-wrap">
+              <div class="dbar-track">${seg(num(d.runMin),'seg-h')}${seg(num(d.idleMin),'seg-i')}${seg(num(d.parkMin),'seg-s')}</div>
+              <div class="dbar-leg">
+                <span class="l"><span class="sw seg-h"></span>เวลาวิ่ง <b>${fmtMin(d.runMin)} ชม.</b></span>
+                <span class="l"><span class="sw seg-i"></span>จอดไม่ดับ <b>${fmtMin(d.idleMin)} ชม.</b></span>
+                <span class="l"><span class="sw seg-s"></span>จอดดับ <b>${fmtMin(d.parkMin)} ชม.</b></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="dsec">
+            <h3>🧾 รายละเอียด</h3>
+            <div class="dmetrics">
+              <div class="dm"><div class="v">${Math.round(num(d.distanceKm)).toLocaleString()}</div><div class="l">ระยะทางวันนี้ (กม.)</div></div>
+              <div class="dm"><div class="v">${fmtMin(total)}</div><div class="l">เวลารวมวันนี้ (ชม.)</div></div>
+              <div class="dm"><div class="v">${fmtMin(d.runMin)}</div><div class="l">เวลาวิ่ง (ชม.)</div></div>
+              <div class="dm"><div class="v">${fmtMin(d.idleMin)}</div><div class="l">จอดรถไม่ดับเครื่อง</div></div>
+              <div class="dm"><div class="v">${fmtMin(d.parkMin)}</div><div class="l">จอดรถดับเครื่อง</div></div>
+              <div class="dm"><div class="v">${num(d.idleCount)}</div><div class="l">จำนวนครั้งจอดไม่ดับ</div></div>
+              <div class="dm"><div class="v">${num(d.stopCount)}</div><div class="l">จำนวนครั้งจอดดับ</div></div>
+              <div class="dm"><div class="v">${num(d.idleOverCount)}</div><div class="l">ไม่ดับเครื่องเกินเกณฑ์</div></div>
+              <div class="dm"><div class="v">${num(d.overtime8)}</div><div class="l">ขับเกิน 8 ชม.</div></div>
+            </div>
+          </div>
+
+          <div class="dsec">
+            <h3>🎯 เทียบเป้าหมายระยะทาง</h3>
+            <div class="dgoal"><span>${num(d.distanceKm) >= TARGET_DIST ? '✅ ถึงเป้า' : '⚠️ ยังไม่ถึงเป้า'} (${TARGET_DIST} กม./วัน)</span><b style="color:${num(d.distanceKm) >= TARGET_DIST ? 'var(--pine)' : 'var(--over)'}">${Math.min(100, Math.round(num(d.distanceKm) / TARGET_DIST * 100))}%</b></div>
+          </div>
+
+          ${(num(d.idleOverCount)>0 || num(d.overtime8)>0) ? `<div class="dwarn">⚠️ ${num(d.overtime8)>0?'ขับเกิน 8 ชม. · ':''}จอดรถไม่ดับเครื่องเกินเกณฑ์ ${num(d.idleOverCount)} ครั้ง</div>` : ''}
+        </div>`;
+    }
+
     document.getElementById('drawer').classList.add('show');
     document.getElementById('scrim').classList.add('show');
     tip.style.opacity = 0;
@@ -656,18 +979,20 @@
   }
 
   async function reloadAndRender(){
-    await loadDailyRunChart();
+    await loadChart();
   }
 
   document.addEventListener('keydown', e => { if(e.key === 'Escape') closeDrawer(); });
-
 
   document.getElementById('metricSeg').addEventListener('click', e => {
     const b = e.target.closest('button'); if(!b) return;
     document.querySelectorAll('#metricSeg button').forEach(x => x.classList.remove('on'));
     b.classList.add('on');
     metric = b.dataset.m;
-    render();
+    sortBy = 'main';
+    document.querySelectorAll('#sortSeg button').forEach(x => x.classList.remove('on'));
+    document.querySelector('#sortSeg button[data-s="main"]').classList.add('on');
+    reloadAndRender();
   });
 
   document.getElementById('sortSeg').addEventListener('click', e => {
@@ -683,8 +1008,11 @@
     reloadAndRender();
   });
 
-  // โหลดข้อมูลครั้งแรกครั้งเดียว
-  // ตัด auto-refresh ออก เพื่อลดการเด้งขออนุญาตเข้าถึงเครือข่ายซ้ำ
+  document.getElementById('range').addEventListener('change', e => {
+    range = e.target.value;
+    reloadAndRender();
+  });
+
   reloadAndRender();
 </script>
 </body>
