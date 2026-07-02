@@ -326,7 +326,6 @@
       const isFleet = scope === 'fleet';
       const url = GAS_URL
         + '?action=getDtcTodayChart'
-        + '&userId=' + encodeURIComponent(MY_UID || '')
         + '&scope=' + encodeURIComponent(isFleet ? 'fleet' : 'plate')
         + (isFleet ? '' : '&plate=' + encodeURIComponent(scope))
         + '&t=' + Date.now();
