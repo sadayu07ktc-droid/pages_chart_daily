@@ -61,7 +61,14 @@
   .stack{width:74%;max-width:42px;border-radius:6px 6px 3px 3px;overflow:hidden;display:flex;flex-direction:column-reverse;transition:filter .12s,transform .12s}
   .bcol:hover .stack{filter:brightness(1.06);transform:translateY(-2px)}
   .bcol.alert .stack{outline:2px solid var(--over);outline-offset:1px}
-  .seg-h{background:var(--heavy)} .seg-l{background:var(--light)} .seg-i{background:var(--idle)} .seg-o{background:var(--over)} .seg-s{background:var(--stop)} .seg-heavy{background:#E9A23B} .seg-light{background:#7FC9A4}
+  .seg-h{background:var(--heavy)}
+  .seg-l{background:var(--light)}
+  .seg-i{background:var(--idle)}
+  .seg-o{background:var(--over)}
+  .seg-s{background:var(--stop)}
+  .seg-heavy{background:#E9A23B}
+  .seg-light{background:#7FC9A4}
+  .seg-no-run{background:#E4EAE7}
   .xlab{font-size:10px;color:var(--ink-faint);margin-top:8px;text-align:center;line-height:1.25;max-width:66px;min-height:58px}
   .xlab b{display:block;color:var(--ink-soft);font-weight:600;white-space:nowrap}
   .xlab .driver-name{display:block;color:var(--ink-faint);font-size:9.5px;line-height:1.18;margin-top:2px;max-height:24px;overflow:hidden}
@@ -323,6 +330,17 @@
     if(s === 'park') return 'st-park';
     if(s === 'off') return 'st-off';
     return 'st-unknown';
+  }
+  function distStatusSegClass(d){
+    const st = String(d.gpsState || '').toLowerCase();
+  
+    if(d.hasRunToday === false || st === 'no_run') return 'seg-no-run';
+    if(st === 'run') return 'seg-h';
+    if(st === 'idling') return 'seg-i';
+    if(st === 'park') return 'seg-s';
+    if(st === 'off') return 'seg-o';
+  
+    return 'seg-s';
   }
 
   function normalizeDtcToday(j) {
@@ -601,7 +619,7 @@
 
     if(metric === 'dtcDist'){
       return [
-        ['seg-h', num(d.distanceKm)]
+        [distStatusSegClass(d), num(d.distanceKm)]
       ];
     }
     
@@ -752,30 +770,40 @@
 
     if(metric === 'dtcDist'){
       const totalDistance = items.reduce((s,d)=>s+num(d.distanceKm),0);
+    
       const movingVehicles = items.filter(d => {
         const st = String(d.gpsState || '').toLowerCase();
         return st === 'run' || st === 'idling';
       }).length;
+    
+      const hasRunVehicles = items.filter(d => d.hasRunToday === true).length;
       const reached = items.filter(d => num(d.distanceKm) >= TARGET_DIST).length;
+    
+      // ✅ เฉลี่ยเฉพาะรถที่เริ่มใช้งานแล้ว
+      const avgKmPerActiveVehicle = hasRunVehicles > 0
+        ? totalDistance / hasRunVehicles
+        : 0;
     
       document.getElementById('kpis').innerHTML = `
         <div class="kpi">
-          <div class="kt">📍 ระยะวิ่งจริงรวม</div>
-          <span class="kpct pct-good">${movingVehicles}/${totalVehicles} คัน</span>
+          <div class="kt">📍 เฉลี่ยระยะวิ่ง/คัน</div>
+          <span class="kpct pct-good">${hasRunVehicles}/${totalVehicles} คัน</span>
+          <div class="kv">${Math.round(avgKmPerActiveVehicle).toLocaleString('th-TH')}<span class="ku"> กม./คัน</span></div>
+          <div class="kbar" style="width:${Math.min(100, avgKmPerActiveVehicle / TARGET_DIST * 100)}%;background:var(--pine)"></div>
+        </div>
+    
+        <div class="kpi">
+          <div class="kt">📌 ระยะวิ่งจริงรวม</div>
+          <span class="kpct pct-good">${Math.round(totalDistance).toLocaleString('th-TH')} กม.</span>
           <div class="kv">${Math.round(totalDistance).toLocaleString('th-TH')}<span class="ku"> กม.</span></div>
-          <div class="kbar" style="width:${Math.min(100, totalDistance / Math.max(1, totalVehicles * TARGET_DIST) * 100)}%;background:var(--pine)"></div>
+          <div class="kbar" style="width:${Math.min(100, totalDistance / Math.max(1, totalVehicles * TARGET_DIST) * 100)}%;background:var(--heavy)"></div>
         </div>
+    
         <div class="kpi">
-          <div class="kt">🎯 ถึงเป้าระยะทาง</div>
-          <span class="kpct ${reached > 0 ? 'pct-good' : 'pct-mid'}">${reached} คัน</span>
-          <div class="kv">${TARGET_DIST}<span class="ku"> กม./วัน</span></div>
-          <div class="kbar" style="width:${Math.min(100, reached / Math.max(1,totalVehicles) * 100)}%;background:var(--idle)"></div>
-        </div>
-        <div class="kpi">
-          <div class="kt">🚛 รถที่เริ่มใช้งาน</div>
-          <span class="kpct pct-good">${API_SUMMARY.hasRunVehicles || 0}/${totalVehicles} คัน</span>
-          <div class="kv">${API_SUMMARY.hasRunVehicles || 0}<span class="ku"> คัน</span></div>
-          <div class="kbar" style="width:${Math.min(100, num(API_SUMMARY.hasRunVehicles) / Math.max(1,totalVehicles) * 100)}%;background:var(--heavy)"></div>
+          <div class="kt">🚛 รถที่กำลังใช้งาน</div>
+          <span class="kpct pct-good">${movingVehicles}/${totalVehicles} คัน</span>
+          <div class="kv">${movingVehicles}<span class="ku"> คัน</span></div>
+          <div class="kbar" style="width:${Math.min(100, movingVehicles / Math.max(1,totalVehicles) * 100)}%;background:var(--idle)"></div>
         </div>`;
       return;
     }
