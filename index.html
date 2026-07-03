@@ -970,9 +970,22 @@
           <div class="div"></div>
           <div class="big">ทำได้เทียบเป้า<b>${pct}%</b></div>
           <div class="kpi2">
-            <div class="kc"><div class="kv">${fmtMin(d.runMin)}</div><div class="kl">เวลาวิ่ง</div></div>
-            <div class="kc"><div class="kv">${fmtMin(d.parkMin)}</div><div class="kl">จอดดับ</div></div>
-            <div class="kc"><div class="kv">${stateText(d.gpsState)}</div><div class="kl">สถานะ</div></div>
+            <div class="kpi2">
+              <div class="kc">
+                <div class="kv">${fmtMin(d.runMin)}</div>
+                <div class="kl">เวลาวิ่ง</div>
+              </div>
+            
+              <div class="kc">
+                <div class="kv">${fmtMin(d.parkMin)}</div>
+                <div class="kl">จอดดับ</div>
+              </div>
+            
+              <div class="kc">
+                <div class="kv">${fmtMin(d.idleMin)}</div>
+                <div class="kl">จอดไม่ดับ</div>
+              </div>
+            </div>
           </div>`;
       }else{
         const total = totalTime(d);
