@@ -251,6 +251,7 @@
   }
 
   function totalTime(d){
+    if(d && d.hasRunToday === false) return 0;
     return num(d.runMin) + num(d.idleMin) + num(d.parkMin);
   }
 
@@ -291,6 +292,7 @@
 
   function stateText(s){
     s = String(s || '').toLowerCase();
+    if(s === 'no_run') return 'รอเริ่มงาน';
     if(s === 'run') return 'กำลังวิ่ง';
     if(s === 'idling') return 'จอดไม่ดับเครื่อง';
     if(s === 'park') return 'จอดรถดับเครื่อง';
@@ -300,6 +302,7 @@
 
   function stateBadge(s){
     s = String(s || '').toLowerCase();
+    if(s === 'no_run') return '⚪ รอเริ่มงาน';
     if(s === 'run') return '🟢 กำลังวิ่ง';
     if(s === 'idling') return '🟠 จอดไม่ดับเครื่อง';
     if(s === 'park') return '🔵 จอดดับเครื่อง';
@@ -309,6 +312,7 @@
 
   function stateClass(s){
     s = String(s || '').toLowerCase();
+    if(s === 'no_run') return 'st-unknown';
     if(s === 'run') return 'st-run';
     if(s === 'idling') return 'st-idling';
     if(s === 'park') return 'st-park';
@@ -318,10 +322,15 @@
 
   function normalizeDtcToday(j) {
     const items = (j.items || []).map(x => {
-      const runMin = num(x.runMin);
-      const idleMin = num(x.idleMin);
-      const parkMin = num(x.parkMin);
+      const hasRunToday = x.hasRunToday === true || String(x.hasRunToday).toUpperCase() === 'TRUE';
+      const gpsStateRaw = String(x.gpsState || '').toLowerCase();
+      const gpsState = hasRunToday ? (gpsStateRaw || 'unknown') : 'no_run';
+
+      const runMin = hasRunToday ? num(x.runMin) : 0;
+      const idleMin = hasRunToday ? num(x.idleMin) : 0;
+      const parkMin = hasRunToday ? num(x.parkMin) : 0;
       const distanceKm = num(x.distanceKm || x.dtcDistance || x.distance);
+
       return {
         date: x.date || j.date || '',
         driverId: x.driverId || '',
@@ -329,16 +338,24 @@
         plate: x.plate || '',
         plates: x.plates || x.plate || '',
         vehicleType: x.vehicleType || '',
-        gpsState: x.gpsState || '',
+        gpsState: gpsState,
+
+        hasRunToday: hasRunToday,
+        firstRunTime: x.firstRunTime || '',
+        activeMinFromFirstRun: hasRunToday ? num(x.activeMinFromFirstRun) : 0,
+        chartStatusLabel: hasRunToday
+          ? (x.chartStatusLabel || stateText(gpsState))
+          : 'รอเริ่มงาน',
+
         distanceKm,
         runMin,
         idleMin,
         parkMin,
-        idleCount: num(x.idleCount),
-        idleOverCount: num(x.idleOverCount),
-        stopCount: num(x.stopCount),
-        overtime4: num(x.overtime4),
-        overtime8: num(x.overtime8),
+        idleCount: hasRunToday ? num(x.idleCount) : 0,
+        idleOverCount: hasRunToday ? num(x.idleOverCount) : 0,
+        stopCount: hasRunToday ? num(x.stopCount) : 0,
+        overtime4: hasRunToday ? num(x.overtime4) : 0,
+        overtime8: hasRunToday ? num(x.overtime8) : 0,
         src: x.src || 'live'
       };
     });
@@ -488,6 +505,11 @@
         driverName: x.name || '',
         vehicleType: x.vehicleType || '',
         gpsState: x.gpsState || '',
+
+        hasRunToday: x.hasRunToday === true,
+        firstRunTime: x.firstRunTime || '',
+        activeMinFromFirstRun: num(x.activeMinFromFirstRun),
+        chartStatusLabel: x.chartStatusLabel || '',
 
         distanceKm: num(x.distanceKm),
         heavyKm: num(x.heavyKm),
@@ -721,13 +743,17 @@
     const totalIdle = items.reduce((s,d)=>s+num(d.idleMin),0);
     const totalPark = items.reduce((s,d)=>s+num(d.parkMin),0);
     const totalIdleOver = items.reduce((s,d)=>s+num(d.idleOverCount),0);
-    const runningVehicles = items.filter(d => num(d.runMin) > 0).length;
+    const runningVehicles = items.filter(d => {
+      const st = String(d.gpsState || '').toLowerCase();
+      return st === 'run' || st === 'idling';
+    }).length;
+    const hasRunVehicles = items.filter(d => d.hasRunToday === true).length;
     const runPct = totalVehicles ? Math.round(runningVehicles / totalVehicles * 100) : 0;
 
     document.getElementById('kpis').innerHTML = `
       <div class="kpi">
         <div class="kt">🟢 เวลาวิ่งรวม</div>
-        <span class="kpct pct-good">${runningVehicles}/${totalVehicles} คัน</span>
+        <span class="kpct pct-good">${runningVehicles}/${hasRunVehicles || totalVehicles} คัน</span>
         <div class="kv">${fmtMin(totalRun)}<span class="ku"> ชม.</span></div>
         <div class="kbar" style="width:${Math.min(100, runPct)}%;background:var(--heavy)"></div>
       </div>
@@ -799,7 +825,7 @@
 
         const pill = API_MODE === 'order'
           ? `<span class="src-pill src-order">${num(d.trips)} เที่ยว</span>`
-          : `<span class="src-pill ${stateClass(d.gpsState)}">${stateText(d.gpsState)}</span>`;
+          : `<span class="src-pill ${stateClass(d.gpsState)}">${d.chartStatusLabel || stateText(d.gpsState)}</span>`;
 
         col.innerHTML = `<div class="barArea"><div class="stack" style="height:${Math.max(2, stackH)}px">${inner}</div></div>
           <div class="xlab"><b>${it.l1}</b>${pill}${it.l2 ? '<span class="driver-name">' + it.l2 + '</span>' : ''}</div>`;
