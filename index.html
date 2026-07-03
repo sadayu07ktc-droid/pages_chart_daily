@@ -144,6 +144,7 @@
     <div class="sp"></div>
     <div class="seg" id="metricSeg">
       <button class="on" data-m="time">เวลา (ชม.)</button>
+      <button data-m="dtcDist">ระยะวิ่งจริง</button>
       <button data-m="dist">ระยะหนัก/เบา</button>
       <button data-m="cost">ต้นทุน</button>
       <button data-m="costUnit">ต้นทุน/หน่วย</button>
@@ -243,6 +244,7 @@
 
   function metricName(){
     if(metric === 'time') return 'เวลาใช้งาน';
+    if(metric === 'dtcDist') return 'ระยะวิ่งจริง';
     if(metric === 'dist') return 'ระยะหนัก/เบา';
     if(metric === 'cost') return 'ต้นทุน';
     if(metric === 'costUnit') return 'ต้นทุน/หน่วย';
@@ -261,6 +263,7 @@
 
   function colHeight(d){
     if(metric === 'time') return totalTime(d);
+    if(metric === 'dtcDist') return num(d.distanceKm);
     if(metric === 'dist') return totalDist(d);
     if(metric === 'cost') return num(d.costTotal);
     if(metric === 'costUnit') return num(d.costPerUnit);
@@ -270,6 +273,7 @@
 
   function targetValue(){
     if(metric === 'time') return TARGET_TIME;
+    if(metric === 'dtcDist') return TARGET_DIST;
     if(metric === 'dist') return TARGET_DIST;
     if(metric === 'heavyPct') return TARGET_HEAVY_PCT;
     return null;
@@ -285,6 +289,7 @@
 
   function targetText(){
     if(metric === 'time') return 'เป้า 9 ชม.';
+    if(metric === 'dtcDist') return 'เป้า 300 กม.';
     if(metric === 'dist') return 'เป้า 300 กม.';
     if(metric === 'heavyPct') return 'เป้า ' + TARGET_HEAVY_PCT + '%';
     return '';
@@ -594,6 +599,12 @@
       ];
     }
 
+    if(metric === 'dtcDist'){
+      return [
+        ['seg-h', num(d.distanceKm)]
+      ];
+    }
+    
     if(metric === 'dist'){
       return [
         ['seg-heavy', num(d.heavyKm)],
@@ -739,6 +750,36 @@
       return;
     }
 
+    if(metric === 'dtcDist'){
+      const totalDistance = items.reduce((s,d)=>s+num(d.distanceKm),0);
+      const movingVehicles = items.filter(d => {
+        const st = String(d.gpsState || '').toLowerCase();
+        return st === 'run' || st === 'idling';
+      }).length;
+      const reached = items.filter(d => num(d.distanceKm) >= TARGET_DIST).length;
+    
+      document.getElementById('kpis').innerHTML = `
+        <div class="kpi">
+          <div class="kt">📍 ระยะวิ่งจริงรวม</div>
+          <span class="kpct pct-good">${movingVehicles}/${totalVehicles} คัน</span>
+          <div class="kv">${Math.round(totalDistance).toLocaleString('th-TH')}<span class="ku"> กม.</span></div>
+          <div class="kbar" style="width:${Math.min(100, totalDistance / Math.max(1, totalVehicles * TARGET_DIST) * 100)}%;background:var(--pine)"></div>
+        </div>
+        <div class="kpi">
+          <div class="kt">🎯 ถึงเป้าระยะทาง</div>
+          <span class="kpct ${reached > 0 ? 'pct-good' : 'pct-mid'}">${reached} คัน</span>
+          <div class="kv">${TARGET_DIST}<span class="ku"> กม./วัน</span></div>
+          <div class="kbar" style="width:${Math.min(100, reached / Math.max(1,totalVehicles) * 100)}%;background:var(--idle)"></div>
+        </div>
+        <div class="kpi">
+          <div class="kt">🚛 รถที่เริ่มใช้งาน</div>
+          <span class="kpct pct-good">${API_SUMMARY.hasRunVehicles || 0}/${totalVehicles} คัน</span>
+          <div class="kv">${API_SUMMARY.hasRunVehicles || 0}<span class="ku"> คัน</span></div>
+          <div class="kbar" style="width:${Math.min(100, num(API_SUMMARY.hasRunVehicles) / Math.max(1,totalVehicles) * 100)}%;background:var(--heavy)"></div>
+        </div>`;
+      return;
+    }
+
     const totalRun = items.reduce((s,d)=>s+num(d.runMin),0);
     const totalIdle = items.reduce((s,d)=>s+num(d.idleMin),0);
     const totalPark = items.reduce((s,d)=>s+num(d.parkMin),0);
@@ -848,7 +889,9 @@
     document.getElementById('modeNote').textContent =
       API_MODE === 'order'
         ? 'แท่งสูงตามค่าที่เลือก · สีส้ม=ระยะหนัก / สีเขียวอ่อน=ระยะเบา · ข้อมูลจาก LOG_Weight'
-        : 'แท่งเวลาใช้ข้อมูลสดจาก DTC / LOG_DailyCount · สีเขียว=วิ่ง สีส้ม=จอดไม่ดับ สีเทา=จอดดับ';
+        : metric === 'dtcDist'
+          ? 'แท่งระยะวิ่งจริงใช้ข้อมูล DTC mileage วันนี้ · แยกจากระยะหนัก/เบาที่มาจาก LOG_Weight'
+          : 'แท่งเวลาใช้ข้อมูลสดจาก DTC / LOG_DailyCount · สีเขียว=วิ่ง สีส้ม=จอดไม่ดับ สีเทา=จอดดับ';
   }
 
   function showTip(e, d, it){
