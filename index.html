@@ -1172,29 +1172,30 @@
     
       if(metric === 'dtcDist'){
         const pct = Math.min(100, Math.round(num(d.distanceKm) / TARGET_DIST * 100));
+        const runMin = num(d.runMin);
+        const avgSpeed = runMin > 0 ? num(d.distanceKm) / (runMin / 60) : 0;
+        const parkPct = runMin > 0 ? Math.round(num(d.parkMin) / runMin * 100) : 0;
+        const idlePct = runMin > 0 ? Math.round(num(d.idleMin) / runMin * 100) : 0;
     
         tip.innerHTML = `
           <h4>${title}<span class="day">${stateBadge(d.gpsState)}</span></h4>
           <div class="trow"><span class="sw" style="background:var(--pine)"></span>ระยะวิ่งจริงวันนี้<span class="v">${num(d.distanceKm).toLocaleString('th-TH')} กม.</span></div>
           <div class="trow"><span class="sw" style="background:var(--target)"></span>เป้าหมาย/วัน<span class="v">${TARGET_DIST} กม.</span></div>
+          <div class="trow"><span class="sw seg-speed"></span>ความเร็วเฉลี่ย<span class="v">${avgSpeed.toFixed(1)} กม./ชม.</span></div>
           <div class="div"></div>
           <div class="big">ทำได้เทียบเป้า<b>${pct}%</b></div>
           <div class="kpi2">
-            <div class="kpi2">
-              <div class="kc">
-                <div class="kv">${fmtMin(d.runMin)}</div>
-                <div class="kl">เวลาวิ่ง</div>
-              </div>
-            
-              <div class="kc">
-                <div class="kv">${fmtMin(d.parkMin)}</div>
-                <div class="kl">จอดดับ</div>
-              </div>
-            
-              <div class="kc">
-                <div class="kv">${fmtMin(d.idleMin)}</div>
-                <div class="kl">จอดไม่ดับ</div>
-              </div>
+            <div class="kc">
+              <div class="kv">${fmtMin(d.runMin)}</div>
+              <div class="kl">เวลาวิ่ง</div>
+            </div>
+            <div class="kc">
+              <div class="kv">${fmtMin(d.parkMin)}</div>
+              <div class="kl">จอดดับ (${parkPct}%)</div>
+            </div>
+            <div class="kc">
+              <div class="kv">${fmtMin(d.idleMin)}</div>
+              <div class="kl">จอดไม่ดับ (${idlePct}%)</div>
             </div>
           </div>`;
       }else{
@@ -1357,6 +1358,10 @@
         const pct = Math.min(100, Math.round(num(d.distanceKm) / TARGET_DIST * 100));
         const total = totalTime(d);
         const sum = total || 1;
+        const runMin = num(d.runMin);
+        const avgSpeed = runMin > 0 ? num(d.distanceKm) / (runMin / 60) : 0;
+        const parkPct = runMin > 0 ? Math.round(num(d.parkMin) / runMin * 100) : 0;
+        const idlePct = runMin > 0 ? Math.round(num(d.idleMin) / runMin * 100) : 0;
       
         const seg = (v,c) => v > 0
           ? `<div class="${c}" style="width:${v/sum*100}%"></div>`
@@ -1397,6 +1402,11 @@
                 </div>
       
                 <div class="dm">
+                  <div class="v">${avgSpeed.toFixed(1)}</div>
+                  <div class="l">ความเร็วเฉลี่ย (กม./ชม.)</div>
+                </div>
+      
+                <div class="dm">
                   <div class="v">${fmtMin(d.runMin)}</div>
                   <div class="l">เวลาวิ่ง</div>
                 </div>
@@ -1407,6 +1417,11 @@
                 </div>
       
                 <div class="dm">
+                  <div class="v">${idlePct}%</div>
+                  <div class="l">จอดไม่ดับ คิดเป็น % ของเวลาวิ่ง</div>
+                </div>
+      
+                <div class="dm">
                   <div class="v">${num(d.idleCount)}</div>
                   <div class="l">จำนวนครั้งที่จอดรถไม่ดับเครื่อง</div>
                 </div>
@@ -1414,6 +1429,11 @@
                 <div class="dm">
                   <div class="v">${fmtMin(d.parkMin)}</div>
                   <div class="l">เวลาจอดรถดับเครื่อง</div>
+                </div>
+      
+                <div class="dm">
+                  <div class="v">${parkPct}%</div>
+                  <div class="l">จอดดับ คิดเป็น % ของเวลาวิ่ง</div>
                 </div>
       
                 <div class="dm">
