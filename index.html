@@ -69,6 +69,9 @@
   .seg-heavy{background:#E9A23B}
   .seg-light{background:#7FC9A4}
   .seg-no-run{background:#E4EAE7}
+  .seg-fuel{background:#2F6FD6}
+  .seg-speed{background:#8B5CF6}
+  .seg-kml{background:#12A37F}
   .xlab{font-size:10px;color:var(--ink-faint);margin-top:8px;text-align:center;line-height:1.25;max-width:66px;min-height:58px}
   .xlab b{display:block;color:var(--ink-soft);font-weight:600;white-space:nowrap}
   .xlab .driver-name{display:block;color:var(--ink-faint);font-size:9.5px;line-height:1.18;margin-top:2px;max-height:24px;overflow:hidden}
@@ -152,6 +155,9 @@
     <div class="seg" id="metricSeg">
       <button class="on" data-m="time">เวลา (ชม.)</button>
       <button data-m="dtcDist">ระยะวิ่งจริง</button>
+      <button data-m="fuel">น้ำมัน ECU</button>
+      <button data-m="speed">ความเร็ว</button>
+      <button data-m="kmL">กม./ลิตร</button>
       <button data-m="dist">ระยะหนัก/เบา</button>
       <button data-m="cost">ต้นทุน</button>
       <button data-m="costUnit">ต้นทุน/หน่วย</button>
@@ -183,6 +189,9 @@
       <button data-s="dist">ระยะทาง</button>
       <button data-s="cost">ต้นทุน</button>
       <button data-s="unit">ต้นทุน/หน่วย</button>
+      <button data-s="fuel">น้ำมัน</button>
+      <button data-s="speed">ความเร็ว</button>
+      <button data-s="kmL">กม./ลิตร</button>
       <button data-s="heavy">หนัก %</button>
       <button data-s="name">ทะเบียน</button>
     </div>
@@ -249,9 +258,16 @@
     return ['dist','cost','costUnit','heavyPct'].includes(m);
   }
 
+  function isDtcSummaryMetric(m){
+    return ['fuel','speed','kmL'].includes(m);
+  }
+
   function metricName(){
     if(metric === 'time') return 'เวลาใช้งาน';
     if(metric === 'dtcDist') return 'ระยะวิ่งจริง';
+    if(metric === 'fuel') return 'น้ำมัน ECU';
+    if(metric === 'speed') return 'ความเร็ว';
+    if(metric === 'kmL') return 'กม./ลิตร';
     if(metric === 'dist') return 'ระยะหนัก/เบา';
     if(metric === 'cost') return 'ต้นทุน';
     if(metric === 'costUnit') return 'ต้นทุน/หน่วย';
@@ -271,6 +287,9 @@
   function colHeight(d){
     if(metric === 'time') return totalTime(d);
     if(metric === 'dtcDist') return num(d.distanceKm);
+    if(metric === 'fuel') return num(d.fuelLiters);
+    if(metric === 'speed') return num(d.avgSpeed);
+    if(metric === 'kmL') return num(d.kmPerLiterEcu);
     if(metric === 'dist') return totalDist(d);
     if(metric === 'cost') return num(d.costTotal);
     if(metric === 'costUnit') return num(d.costPerUnit);
@@ -289,6 +308,9 @@
   function yTickLabel(v){
     if(metric === 'time') return Math.round(v / 60 * 10) / 10;
     if(metric === 'cost') return v >= 1000 ? Math.round(v/1000) + 'k' : Math.round(v);
+    if(metric === 'fuel') return Math.round(v);
+    if(metric === 'speed') return Math.round(v);
+    if(metric === 'kmL') return Math.round(v * 10) / 10;
     if(metric === 'costUnit') return Math.round(v * 10000) / 10000;
     if(metric === 'heavyPct') return Math.round(v);
     return Math.round(v);
@@ -394,6 +416,48 @@
     };
   }
 
+  function normalizeDtcSummary(j) {
+    const items = (j.items || []).map(x => {
+      const distanceKm = num(x.distanceKm || x['ระยะวิ่งจริง(กม.)']);
+      const fuelLiters = num(x.fuelLiters || x.ecuFuelLiters || x['น้ำมัน ECU(ลิตร)']);
+      const runMin = num(x.runMin || x['นาทีวิ่ง']);
+      const avgSpeed = num(x.avgSpeed || x['ความเร็วเฉลี่ย(กมต่อชม)']) || (runMin > 0 ? distanceKm / (runMin / 60) : 0);
+      const kmPerLiterEcu = num(x.kmPerLiterEcu || x.kmPerLiter || x['กมต่อลิตร ECU']) || (fuelLiters > 0 ? distanceKm / fuelLiters : 0);
+
+      return {
+        date: x.date || j.date || '',
+        driverId: x.driverId || x['รหัสคนขับ'] || '',
+        name: x.name || x.driverName || x['ชื่อคนขับ'] || '',
+        plate: x.plate || x['ทะเบียนรถ'] || '',
+        gpsId: x.gpsId || x['GPS ID'] || '',
+        distanceKm,
+        fuelLiters,
+        kmPerLiterEcu,
+        avgSpeed,
+        maxSpeed: num(x.maxSpeed || x['ความเร็วสูงสุด']),
+        runMin,
+        idleMin: num(x.idleMin || x['นาทีจอดไม่ดับ']),
+        idleCount: num(x.idleCount || x['จำนวนครั้งจอดไม่ดับ']),
+        idleOverCount: num(x.idleOverCount || x['จำนวนครั้งจอดไม่ดับเกินเกณฑ์']),
+        stopCount: num(x.stopCount || x['จำนวนครั้งจอดดับ']),
+        overSpeedCount: num(x.overSpeedCount || x['จำนวนครั้งขับเร็วเกิน']),
+        overtime4: num(x.overtime4 || x['ขับเกิน 4 ชม.']),
+        overtime8: num(x.overtime8 || x['ขับเกิน 8 ชม.']),
+        src: x.src || 'LOG_DTC_DailySummary'
+      };
+    });
+
+    return {
+      ok: true,
+      source: j.source || 'LOG_DTC_DailySummary',
+      mode: 'summary',
+      date: j.from && j.to ? (j.from + ' ถึง ' + j.to) : (j.date || ''),
+      updatedAt: j.updatedAt || '',
+      summary: j.summary || {},
+      items
+    };
+  }
+
   function normalizeOrderCost(j) {
     const items = (j.items || []).map(x => {
       return {
@@ -457,13 +521,21 @@
     try{
       const isFleet = scope === 'fleet';
       const useOrder = isOrderMetric(metric);
-      API_MODE = useOrder ? 'order' : 'dtc';
+      const useSummary = isDtcSummaryMetric(metric);
+      API_MODE = useOrder ? 'order' : (useSummary ? 'summary' : 'dtc');
 
       let url = '';
 
       if(useOrder){
         url = GAS_URL
           + '?action=getOrderCostChart'
+          + '&range=' + encodeURIComponent(range)
+          + '&group=plate'
+          + (isFleet ? '' : '&plate=' + encodeURIComponent(scope))
+          + '&t=' + Date.now();
+      }else if(useSummary){
+        url = GAS_URL
+          + '?action=getDtcSummaryChart'
           + '&range=' + encodeURIComponent(range)
           + '&group=plate'
           + (isFleet ? '' : '&plate=' + encodeURIComponent(scope))
@@ -490,7 +562,7 @@
         throw new Error((j && j.error) || 'โหลดข้อมูลไม่สำเร็จ');
       }
 
-      const data = useOrder ? normalizeOrderCost(j) : normalizeDtcToday(j);
+      const data = useOrder ? normalizeOrderCost(j) : (useSummary ? normalizeDtcSummary(j) : normalizeDtcToday(j));
 
       API_ITEMS = data.items || [];
       API_VEHICLES = Array.from(new Set(API_ITEMS.map(x => x.plate).filter(Boolean)));
@@ -560,13 +632,23 @@
         costPerUnit: x.costPerUnit == null ? null : num(x.costPerUnit),
         kmPerLiter: x.kmPerLiter == null ? null : num(x.kmPerLiter),
 
-        src: x.src || (useOrder ? 'Log_Weight' : 'live')
+        fuelLiters: num(x.fuelLiters),
+        kmPerLiterEcu: num(x.kmPerLiterEcu),
+        avgSpeed: num(x.avgSpeed),
+        maxSpeed: num(x.maxSpeed),
+        overSpeedCount: num(x.overSpeedCount),
+        gpsId: x.gpsId || '',
+
+        src: x.src || (useOrder ? 'Log_Weight' : (API_MODE === 'summary' ? 'LOG_DTC_DailySummary' : 'live'))
       }
     };
   }
 
   function mainValue(d){
     if(metric === 'time') return totalTime(d);
+    if(metric === 'fuel') return num(d.fuelLiters);
+    if(metric === 'speed') return num(d.avgSpeed);
+    if(metric === 'kmL') return num(d.kmPerLiterEcu);
     if(metric === 'dist') return num(d.distanceKm);
     if(metric === 'cost') return num(d.costTotal);
     if(metric === 'costUnit') return num(d.costPerUnit);
@@ -583,6 +665,12 @@
       items.sort((a,b)=>num(b.d.costTotal)-num(a.d.costTotal));
     }else if(sortBy === 'unit'){
       items.sort((a,b)=>num(b.d.costPerUnit)-num(a.d.costPerUnit));
+    }else if(sortBy === 'fuel'){
+      items.sort((a,b)=>num(b.d.fuelLiters)-num(a.d.fuelLiters));
+    }else if(sortBy === 'speed'){
+      items.sort((a,b)=>num(b.d.avgSpeed)-num(a.d.avgSpeed));
+    }else if(sortBy === 'kmL'){
+      items.sort((a,b)=>num(b.d.kmPerLiterEcu)-num(a.d.kmPerLiterEcu));
     }else if(sortBy === 'heavy'){
       items.sort((a,b)=>num(b.d.pctHeavy)-num(a.d.pctHeavy));
     }else if(sortBy === 'name'){
@@ -639,6 +727,18 @@
       ];
     }
     
+    if(metric === 'fuel'){
+      return [['seg-fuel', num(d.fuelLiters)]];
+    }
+
+    if(metric === 'speed'){
+      return [['seg-speed', num(d.avgSpeed)]];
+    }
+
+    if(metric === 'kmL'){
+      return [['seg-kml', num(d.kmPerLiterEcu)]];
+    }
+
     if(metric === 'dist'){
       return [
         ['seg-heavy', num(d.heavyKm)],
@@ -667,6 +767,100 @@
 
   function renderLegend(){
     const el = document.getElementById('legend');
+
+    if(API_MODE === 'summary'){
+      if(metric === 'fuel'){
+        el.innerHTML = `
+          <div class="lg"><span class="sw seg-fuel"></span>น้ำมัน ECU (ลิตร)</div>
+          <div class="lg" style="margin-left:auto;color:var(--ink-faint)">ข้อมูลจาก LOG_DTC_DailySummary</div>`;
+      }else if(metric === 'speed'){
+        el.innerHTML = `
+          <div class="lg"><span class="sw seg-speed"></span>ความเร็วเฉลี่ย (กม./ชม.)</div>
+          <div class="lg" style="margin-left:auto;color:var(--ink-faint)">ข้อมูลจาก LOG_DTC_DailySummary</div>`;
+      }else{
+        el.innerHTML = `
+          <div class="lg"><span class="sw seg-kml"></span>กม./ลิตร ECU</div>
+          <div class="lg" style="margin-left:auto;color:var(--ink-faint)">ข้อมูลจาก LOG_DTC_DailySummary</div>`;
+      }
+      return;
+    }
+
+    if(API_MODE === 'summary'){
+      const s = API_SUMMARY || {};
+      const totalDistance = items.reduce((a,d)=>a+num(d.distanceKm),0);
+      const totalFuel = items.reduce((a,d)=>a+num(d.fuelLiters),0);
+      const totalRun = items.reduce((a,d)=>a+num(d.runMin),0);
+      const avgSpeed = totalRun > 0 ? totalDistance / (totalRun / 60) : 0;
+      const kmL = totalFuel > 0 ? totalDistance / totalFuel : 0;
+      const overs = items.reduce((a,d)=>a+num(d.overSpeedCount),0);
+
+      if(metric === 'fuel'){
+        document.getElementById('kpis').innerHTML = `
+          <div class="kpi">
+            <div class="kt">⛽ น้ำมัน ECU รวม</div>
+            <span class="kpct pct-good">${totalVehicles} คัน</span>
+            <div class="kv">${money(totalFuel)}<span class="ku"> ลิตร</span></div>
+            <div class="kbar" style="width:100%;background:var(--pine)"></div>
+          </div>
+          <div class="kpi">
+            <div class="kt">📍 ระยะวิ่งจริงรวม</div>
+            <span class="kpct pct-good">${Math.round(totalDistance).toLocaleString('th-TH')} กม.</span>
+            <div class="kv">${Math.round(totalDistance).toLocaleString('th-TH')}<span class="ku"> กม.</span></div>
+            <div class="kbar" style="width:80%;background:var(--heavy)"></div>
+          </div>
+          <div class="kpi">
+            <div class="kt">⚖️ ประสิทธิภาพรวม</div>
+            <span class="kpct ${kmL >= 2.5 ? 'pct-good':'pct-mid'}">กม./ลิตร</span>
+            <div class="kv">${kmL.toFixed(2)}<span class="ku"> กม./ลิตร</span></div>
+            <div class="kbar" style="width:${Math.min(100, kmL/4*100)}%;background:var(--idle)"></div>
+          </div>`;
+        return;
+      }
+
+      if(metric === 'speed'){
+        document.getElementById('kpis').innerHTML = `
+          <div class="kpi">
+            <div class="kt">⚡ ความเร็วเฉลี่ยฟลีต</div>
+            <span class="kpct pct-good">${totalVehicles} คัน</span>
+            <div class="kv">${avgSpeed.toFixed(1)}<span class="ku"> กม./ชม.</span></div>
+            <div class="kbar" style="width:${Math.min(100, avgSpeed/90*100)}%;background:var(--pine)"></div>
+          </div>
+          <div class="kpi">
+            <div class="kt">📍 ระยะวิ่งจริงรวม</div>
+            <span class="kpct pct-good">${Math.round(totalDistance).toLocaleString('th-TH')} กม.</span>
+            <div class="kv">${Math.round(totalDistance).toLocaleString('th-TH')}<span class="ku"> กม.</span></div>
+            <div class="kbar" style="width:80%;background:var(--heavy)"></div>
+          </div>
+          <div class="kpi">
+            <div class="kt">🚨 ขับเร็วเกิน</div>
+            <span class="kpct ${overs > 0 ? 'pct-bad':'pct-good'}">${overs} ครั้ง</span>
+            <div class="kv">${overs}<span class="ku"> ครั้ง</span></div>
+            <div class="kbar" style="width:${Math.min(100, overs*10)}%;background:${overs>0?'var(--over)':'var(--pine)'}"></div>
+          </div>`;
+        return;
+      }
+
+      document.getElementById('kpis').innerHTML = `
+        <div class="kpi">
+          <div class="kt">⚖️ กม./ลิตร ECU รวม</div>
+          <span class="kpct ${kmL >= 2.5 ? 'pct-good':'pct-mid'}">ฟลีต</span>
+          <div class="kv">${kmL.toFixed(2)}<span class="ku"> กม./ลิตร</span></div>
+          <div class="kbar" style="width:${Math.min(100, kmL/4*100)}%;background:var(--pine)"></div>
+        </div>
+        <div class="kpi">
+          <div class="kt">⛽ น้ำมัน ECU รวม</div>
+          <span class="kpct pct-good">${money(totalFuel)} ลิตร</span>
+          <div class="kv">${money(totalFuel)}<span class="ku"> ลิตร</span></div>
+          <div class="kbar" style="width:80%;background:var(--idle)"></div>
+        </div>
+        <div class="kpi">
+          <div class="kt">📍 ระยะวิ่งจริงรวม</div>
+          <span class="kpct pct-good">${Math.round(totalDistance).toLocaleString('th-TH')} กม.</span>
+          <div class="kv">${Math.round(totalDistance).toLocaleString('th-TH')}<span class="ku"> กม.</span></div>
+          <div class="kbar" style="width:100%;background:var(--heavy)"></div>
+        </div>`;
+      return;
+    }
 
     if(API_MODE === 'order'){
       el.innerHTML = `
@@ -896,7 +1090,9 @@
     }else if(!items.length){
       const msg = API_MODE === 'order'
         ? 'ยังไม่มีข้อมูลใน LOG_Weight ตามช่วงวันที่นี้<br>ลองเลือก 7 วันล่าสุด หรือ เดือนนี้'
-        : 'ยังไม่มีข้อมูลวันนี้<br>เช็ก LOG_DailyCount / pollGpsState';
+        : API_MODE === 'summary'
+          ? 'ยังไม่มีข้อมูลใน LOG_DTC_DailySummary ตามช่วงวันที่นี้<br>ให้ Run importDtcYesterdaySummary ก่อน'
+          : 'ยังไม่มีข้อมูลวันนี้<br>เช็ก LOG_DailyCount / pollGpsState';
       bars.innerHTML = `<div style="height:300px;width:100%;display:grid;place-items:center;color:var(--ink-faint);font-size:13px;text-align:center;line-height:1.7">${msg}</div>`;
     }else{
       items.forEach(it => {
@@ -925,7 +1121,9 @@
     const scopeTxt = scope === 'fleet' ? 'ทั้งฟลีต' : ('รถ ' + scope);
     const updated = API_UPDATED ? ' · อัปเดต ' + fmtDateTime(API_UPDATED) : '';
     const srcTxt = API_SOURCE ? ' · ' + API_SOURCE : '';
-    const rangeTxt = API_MODE === 'order' ? (document.getElementById('range').selectedOptions[0].textContent) : 'วันนี้';
+    const rangeTxt = (API_MODE === 'order' || API_MODE === 'summary')
+      ? (document.getElementById('range').selectedOptions[0].textContent)
+      : 'วันนี้';
 
     document.getElementById('sub').textContent =
       scopeTxt + ' · ' + rangeTxt + ' · ' + metricName() + srcTxt + updated;
@@ -933,15 +1131,31 @@
     document.getElementById('modeNote').textContent =
       API_MODE === 'order'
         ? 'แท่งสูงตามค่าที่เลือก · สีส้ม=ระยะหนัก / สีเขียวอ่อน=ระยะเบา · ข้อมูลจาก LOG_Weight'
-        : metric === 'dtcDist'
-          ? 'แท่งระยะวิ่งจริงใช้ข้อมูล DTC mileage วันนี้ · แยกจากระยะหนัก/เบาที่มาจาก LOG_Weight'
-          : 'แท่งเวลาใช้ข้อมูลสดจาก DTC / LOG_DailyCount · สีเขียว=วิ่ง สีส้ม=จอดไม่ดับ สีเทา=จอดดับ';
+        : API_MODE === 'summary'
+          ? 'ข้อมูลน้ำมัน/ความเร็ว/กม.ต่อลิตร อ่านจาก LOG_DTC_DailySummary ตามช่วงวันที่ที่เลือก'
+          : metric === 'dtcDist'
+            ? 'แท่งระยะวิ่งจริงใช้ข้อมูล DTC mileage วันนี้ · แยกจากระยะหนัก/เบาที่มาจาก LOG_Weight'
+            : 'แท่งเวลาใช้ข้อมูลสดจาก DTC / LOG_DailyCount · สีเขียว=วิ่ง สีส้ม=จอดไม่ดับ สีเทา=จอดดับ';
   }
 
   function showTip(e, d, it){
     const title = (d.plate ? d.plate + ' · ' : '') + (d.driverName || it.l2 || d.driverId);
 
-    if(API_MODE === 'order'){
+    if(API_MODE === 'summary'){
+      tip.innerHTML = `
+        <h4>${title}<span class="day">${d.date || API_DATE || ''}</span></h4>
+        <div class="trow"><span class="sw" style="background:var(--pine)"></span>ระยะวิ่งจริง<span class="v">${num(d.distanceKm).toLocaleString('th-TH')} กม.</span></div>
+        <div class="trow"><span class="sw seg-fuel"></span>น้ำมัน ECU<span class="v">${money(d.fuelLiters)} ลิตร</span></div>
+        <div class="trow"><span class="sw seg-kml"></span>กม./ลิตร ECU<span class="v">${num(d.kmPerLiterEcu).toFixed(2)}</span></div>
+        <div class="trow"><span class="sw seg-speed"></span>ความเร็วเฉลี่ย<span class="v">${num(d.avgSpeed).toFixed(1)} กม./ชม.</span></div>
+        <div class="div"></div>
+        <div class="big">เวลาวิ่ง<b>${fmtMin(d.runMin)} ชม.</b></div>
+        <div class="kpi2">
+          <div class="kc"><div class="kv">${fmtMin(d.idleMin)}</div><div class="kl">จอดไม่ดับ</div></div>
+          <div class="kc"><div class="kv">${num(d.idleCount)}</div><div class="kl">ครั้งจอดไม่ดับ</div></div>
+          <div class="kc"><div class="kv">${num(d.overSpeedCount)}</div><div class="kl">ขับเร็วเกิน</div></div>
+        </div>`;
+    }else if(API_MODE === 'order'){
       const unit = d.unit || 'หน่วย';
       tip.innerHTML = `
         <h4>${title}<span class="day">${d.trips} เที่ยว</span></h4>
@@ -1070,7 +1284,33 @@
   function openDrawer(d, it){
     const title = (d.plate ? d.plate + ' · ' : '') + (d.driverName || it.l2 || d.driverId);
 
-    if(API_MODE === 'order'){
+    if(API_MODE === 'summary'){
+      document.getElementById('drawer').innerHTML = `
+        <div class="dh">
+          <button class="x" onclick="closeDrawer()">×</button>
+          <span class="dbadge">LOG_DTC_DailySummary</span>
+          <div class="dname">${title}</div>
+          <div class="dmeta">${d.driverId || ''} · GPS ${d.gpsId || ''} · ${d.date || API_DATE || ''}</div>
+        </div>
+        <div class="dbody">
+          <div class="dsec">
+            <h3>⛽ น้ำมัน / ความเร็ว / ประสิทธิภาพ</h3>
+            <div class="dmetrics">
+              <div class="dm"><div class="v">${money(d.fuelLiters)}</div><div class="l">น้ำมัน ECU (ลิตร)</div></div>
+              <div class="dm"><div class="v">${num(d.kmPerLiterEcu).toFixed(2)}</div><div class="l">กม./ลิตร ECU</div></div>
+              <div class="dm"><div class="v">${num(d.avgSpeed).toFixed(1)}</div><div class="l">ความเร็วเฉลี่ย (กม./ชม.)</div></div>
+              <div class="dm"><div class="v">${Math.round(num(d.distanceKm)).toLocaleString('th-TH')}</div><div class="l">ระยะวิ่งจริง (กม.)</div></div>
+              <div class="dm"><div class="v">${fmtMin(d.runMin)}</div><div class="l">เวลาวิ่ง</div></div>
+              <div class="dm"><div class="v">${fmtMin(d.idleMin)}</div><div class="l">เวลาจอดไม่ดับ</div></div>
+              <div class="dm"><div class="v">${num(d.idleCount)}</div><div class="l">จำนวนครั้งจอดไม่ดับ</div></div>
+              <div class="dm"><div class="v">${num(d.stopCount)}</div><div class="l">จำนวนครั้งจอดดับ</div></div>
+              <div class="dm"><div class="v">${num(d.overSpeedCount)}</div><div class="l">จำนวนครั้งขับเร็วเกิน</div></div>
+            </div>
+          </div>
+
+          ${(num(d.overSpeedCount)>0 || num(d.idleOverCount)>0) ? `<div class="dwarn">⚠️ พบรายการที่ควรตรวจสอบ · ขับเร็วเกิน ${num(d.overSpeedCount)} ครั้ง · จอดไม่ดับเกินเกณฑ์ ${num(d.idleOverCount)} ครั้ง</div>` : ''}
+        </div>`;
+    }else if(API_MODE === 'order'){
       const unit = d.unit || 'หน่วย';
       const sumKm = num(d.heavyKm) + num(d.lightKm) || 1;
       const seg = (v,c) => v > 0 ? `<div class="${c}" style="width:${v/sumKm*100}%"></div>` : '';
