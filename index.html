@@ -618,8 +618,24 @@
     }
 
     if(metric === 'dtcDist'){
+      const total = totalTime(d);
+    
+      // ถ้ายังไม่มีเวลา ให้ใช้สีตามสถานะปัจจุบันทั้งแท่ง
+      if(total <= 0){
+        return [
+          [distStatusSegClass(d), num(d.distanceKm)]
+        ];
+      }
+    
+      const dist = num(d.distanceKm);
+      const runPart = dist * num(d.runMin) / total;
+      const idlePart = dist * num(d.idleMin) / total;
+      const parkPart = dist * num(d.parkMin) / total;
+    
       return [
-        [distStatusSegClass(d), num(d.distanceKm)]
+        ['seg-h', runPart],
+        ['seg-i', idlePart],
+        ['seg-s', parkPart]
       ];
     }
     
@@ -964,41 +980,53 @@
         // ✅ เมนูระยะวิ่งจริง: Tooltip ต้องแสดงเป็น กม. ไม่ใช่เวลา
         if(metric === 'dtcDist'){
           const pct = Math.min(100, Math.round(num(d.distanceKm) / TARGET_DIST * 100));
-      
+        
           tip.innerHTML = `
             <h4>${title}<span class="day">${stateBadge(d.gpsState)}</span></h4>
-      
+        
             <div class="trow">
               <span class="sw" style="background:var(--pine)"></span>
-              ระยะวิ่งจริงวันนี้
+              ระยะวิ่งจริง
               <span class="v">${num(d.distanceKm).toLocaleString('th-TH')} กม.</span>
             </div>
-      
+        
             <div class="trow">
-              <span class="sw" style="background:var(--target)"></span>
-              เป้าหมาย/วัน
-              <span class="v">${TARGET_DIST} กม.</span>
+              <span class="sw seg-h"></span>
+              เวลาวิ่ง
+              <span class="v">${fmtMin(d.runMin)} ชม.</span>
             </div>
-      
+        
+            <div class="trow">
+              <span class="sw seg-i"></span>
+              จอดไม่ดับ
+              <span class="v">${fmtMin(d.idleMin)} ชม.</span>
+            </div>
+        
+            <div class="trow">
+              <span class="sw seg-s"></span>
+              จอดดับ
+              <span class="v">${fmtMin(d.parkMin)} ชม.</span>
+            </div>
+        
             <div class="div"></div>
-      
+        
             <div class="big">ทำได้เทียบเป้า<b>${pct}%</b></div>
-      
+        
             <div class="kpi2">
               <div class="kc">
-                <div class="kv">${fmtMin(d.runMin)}</div>
-                <div class="kl">เวลาวิ่ง</div>
+                <div class="kv">${num(d.idleCount)}</div>
+                <div class="kl">ครั้งจอดไม่ดับ</div>
               </div>
               <div class="kc">
-                <div class="kv">${fmtMin(d.parkMin)}</div>
-                <div class="kl">จอดดับ</div>
+                <div class="kv">${num(d.stopCount)}</div>
+                <div class="kl">ครั้งจอดดับ</div>
               </div>
               <div class="kc">
                 <div class="kv">${stateText(d.gpsState)}</div>
                 <div class="kl">สถานะ</div>
               </div>
             </div>`;
-        } else {
+} else {
           tip.innerHTML = `
             <h4>${title}<span class="day">${stateBadge(d.gpsState)}</span></h4>
             <div class="trow"><span class="sw seg-h"></span>เวลาวิ่ง<span class="v">${fmtMin(d.runMin)} ชม.</span></div>
@@ -1078,8 +1106,13 @@
     
       if(metric === 'dtcDist'){
         const pct = Math.min(100, Math.round(num(d.distanceKm) / TARGET_DIST * 100));
-        const barColor = distStatusSegClass(d);
-    
+        const total = totalTime(d);
+        const sum = total || 1;
+      
+        const seg = (v,c) => v > 0
+          ? `<div class="${c}" style="width:${v/sum*100}%"></div>`
+          : '';
+      
         document.getElementById('drawer').innerHTML = `
           <div class="dh">
             <button class="x" onclick="closeDrawer()">×</button>
@@ -1087,34 +1120,61 @@
             <div class="dname">${title}</div>
             <div class="dmeta">${d.driverId || ''} · ${d.vehicleType || ''} · ${d.date || API_DATE || ''}</div>
           </div>
-    
+      
           <div class="dbody">
             <div class="dsec">
               <h3>📍 ระยะวิ่งจริงวันนี้</h3>
               <div class="dbar-wrap">
                 <div class="dbar-track">
-                  <div class="${barColor}" style="width:${pct}%"></div>
+                  ${seg(num(d.runMin),'seg-h')}
+                  ${seg(num(d.idleMin),'seg-i')}
+                  ${seg(num(d.parkMin),'seg-s')}
                 </div>
                 <div class="dbar-leg">
-                  <span class="l"><span class="sw ${barColor}"></span>ระยะวันนี้ <b>${num(d.distanceKm).toLocaleString('th-TH')} กม.</b></span>
-                  <span class="l">เป้าหมาย <b>${TARGET_DIST} กม./วัน</b></span>
-                  <span class="l">ทำได้ <b>${pct}%</b></span>
+                  <span class="l"><span class="sw seg-h"></span>เวลาวิ่ง <b>${fmtMin(d.runMin)} ชม.</b></span>
+                  <span class="l"><span class="sw seg-i"></span>จอดไม่ดับ <b>${fmtMin(d.idleMin)} ชม.</b></span>
+                  <span class="l"><span class="sw seg-s"></span>จอดดับ <b>${fmtMin(d.parkMin)} ชม.</b></span>
                 </div>
               </div>
             </div>
-    
+      
             <div class="dsec">
               <h3>🧾 รายละเอียด</h3>
               <div class="dmetrics">
-                <div class="dm"><div class="v">${Math.round(num(d.distanceKm)).toLocaleString('th-TH')}</div><div class="l">ระยะวิ่งจริงวันนี้ (กม.)</div></div>
-                <div class="dm"><div class="v">${stateText(d.gpsState)}</div><div class="l">สถานะปัจจุบัน</div></div>
-                <div class="dm"><div class="v">${fmtMin(d.runMin)}</div><div class="l">เวลาวิ่งวันนี้</div></div>
-                <div class="dm"><div class="v">${fmtMin(d.parkMin)}</div><div class="l">จอดรถดับเครื่อง</div></div>
-                <div class="dm"><div class="v">${fmtMin(d.idleMin)}</div><div class="l">จอดไม่ดับเครื่อง</div></div>
-                <div class="dm"><div class="v">${d.hasRunToday ? 'เริ่มแล้ว' : 'รอเริ่มงาน'}</div><div class="l">สถานะการใช้งานวันนี้</div></div>
+      
+                <div class="dm">
+                  <div class="v">${Math.round(num(d.distanceKm)).toLocaleString('th-TH')}</div>
+                  <div class="l">ระยะวิ่งจริง (กม.)</div>
+                </div>
+      
+                <div class="dm">
+                  <div class="v">${fmtMin(d.runMin)}</div>
+                  <div class="l">เวลาวิ่ง</div>
+                </div>
+      
+                <div class="dm">
+                  <div class="v">${fmtMin(d.idleMin)}</div>
+                  <div class="l">เวลาจอดรถไม่ดับเครื่อง</div>
+                </div>
+      
+                <div class="dm">
+                  <div class="v">${num(d.idleCount)}</div>
+                  <div class="l">จำนวนครั้งที่จอดรถไม่ดับเครื่อง</div>
+                </div>
+      
+                <div class="dm">
+                  <div class="v">${fmtMin(d.parkMin)}</div>
+                  <div class="l">เวลาจอดรถดับเครื่อง</div>
+                </div>
+      
+                <div class="dm">
+                  <div class="v">${num(d.stopCount)}</div>
+                  <div class="l">จำนวนครั้งเวลาจอดรถดับเครื่อง</div>
+                </div>
+      
               </div>
             </div>
-    
+      
             <div class="dsec">
               <h3>🎯 เทียบเป้าหมายระยะทาง</h3>
               <div class="dgoal">
@@ -1123,7 +1183,6 @@
               </div>
             </div>
           </div>`;
-    
       } else {
         const sum = total || 1;
         const seg = (v,c) => v > 0 ? `<div class="${c}" style="width:${v/sum*100}%"></div>` : '';
