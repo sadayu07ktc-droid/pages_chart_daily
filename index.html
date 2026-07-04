@@ -1172,6 +1172,7 @@
         <div class="trow" style="margin-top:8px">ออเดอร์<span class="v">${d.orders || (d.orderIds||[]).length}</span></div>
         <div class="trow">ปริมาณ<span class="v">${Math.round(num(d.qty)).toLocaleString('th-TH')} ${unit}</span></div>`;
     }else{
+        const total = totalTime(d);
         tip.innerHTML = `
           <h4>${title}<span class="day">${stateBadge(d.gpsState)}</span></h4>
           <div class="trow"><span class="sw seg-h"></span>เวลาวิ่ง<span class="v">${fmtMin(d.runMin)} ชม.</span></div>
@@ -1185,7 +1186,6 @@
             <div class="kc"><div class="kv">${num(d.stopCount)}</div><div class="kl">ครั้งจอดดับ</div></div>
           </div>
           ${(num(d.idleOverCount)>0 || num(d.overtime8)>0) ? `<div class="warn">⚠️ ${num(d.overtime8)>0?'ขับเกิน 8 ชม. · ':''}จอดรถไม่ดับเครื่องเกินเกณฑ์ ${num(d.idleOverCount)} ครั้ง</div>` : ''}`;
-      }
     }
 
     tip.style.opacity = 1;
