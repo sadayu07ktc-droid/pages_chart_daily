@@ -1317,477 +1317,111 @@
               <div class="dgoal"><span>${(d.orderIds||[]).join(', ') || d.orderId || '—'}</span><b>${d.orders || (d.orderIds||[]).length}</b></div>
             </div>
           </div>`;
-      }else{
-    const total = totalTime(d);
-  
-    if(metric === 'dtcDist'){
-  
-      const pct = Math.min(
-        100,
-        Math.round(num(d.distanceKm) / TARGET_DIST * 100)
-      );
-  
-      const total = totalTime(d);
-      const sum = total || 1;
-  
-      const runMin = num(d.runMin);
-  
-      const totalMin =
-        runMin +
-        num(d.idleMin) +
-        num(d.parkMin);
-  
-      // ความเร็วเฉลี่ย
-      const avgSpeed = runMin > 0
-        ? num(d.distanceKm) / (runMin / 60)
-        : 0;
-  
-      // % จอดดับ
-      const parkPct = totalMin > 0
-        ? Math.round(num(d.parkMin) / totalMin * 100)
-        : 0;
-  
-      // % จอดไม่ดับ
-      const idlePct = totalMin > 0
-        ? Math.round(num(d.idleMin) / totalMin * 100)
-        : 0;
-  
-  
-      /* ======================================================
-       * ✅ ประวัติออก / เข้าโรงงานทุกครั้ง
-       * ====================================================== */
-  
-      const factoryTrips = Array.isArray(d.factoryTrips)
-        ? d.factoryTrips
-        : [];
-  
-      const tripHistoryHtml = factoryTrips.length
-        ? factoryTrips.map((t, idx) => {
-  
-            const leaveTxt = t.leaveTime
-              ? fmtDateTime(t.leaveTime)
-              : '—';
-  
-            const returnTxt = t.returnTime
-              ? fmtDateTime(t.returnTime)
-              : 'ยังไม่กลับ';
-  
-            const isRunning = !t.returnTime;
-  
-            return `
-              <div style="
-                background:var(--canvas);
-                border:1px solid var(--line);
-                border-radius:12px;
-                padding:13px 14px;
-                margin-bottom:10px;
-              ">
-  
-                <div style="
-                  display:flex;
-                  justify-content:space-between;
-                  align-items:center;
-                  gap:10px;
-                  margin-bottom:10px;
-                ">
-  
-                  <b style="
-                    font-size:13px;
-                    color:var(--ink);
-                  ">
-                    รอบ ${idx + 1}${isRunning ? ' · กำลังวิ่ง' : ''}
-                  </b>
-  
-                  <span class="src-pill ${isRunning ? 'st-run' : 'src-sheet'}">
-                    ${isRunning ? 'กำลังวิ่ง' : 'จบรอบ'}
-                  </span>
-  
-                </div>
-  
-  
-                <div style="
-                  display:grid;
-                  grid-template-columns:58px 1fr;
-                  row-gap:7px;
-                  font-size:12.5px;
-                ">
-  
-                  <div style="color:var(--ink-faint)">
-                    ออก
-                  </div>
-  
-                  <div style="
-                    text-align:right;
-                    font-family:'IBM Plex Mono',monospace;
-                    font-weight:700;
-                  ">
-                    ${leaveTxt}
-                  </div>
-  
-  
-                  <div style="color:var(--ink-faint)">
-                    กลับ
-                  </div>
-  
-                  <div style="
-                    text-align:right;
-                    font-family:'IBM Plex Mono',monospace;
-                    font-weight:700;
-                    color:${isRunning ? 'var(--pine)' : 'var(--ink)'};
-                  ">
-                    ${returnTxt}
-                  </div>
-  
-  
-                  <div style="color:var(--ink-faint)">
-                    ระยะ
-                  </div>
-  
-                  <div style="
-                    text-align:right;
-                    font-family:'IBM Plex Mono',monospace;
-                    font-weight:700;
-                  ">
-                    ${num(t.distanceKm).toLocaleString('th-TH')} กม.
-                  </div>
-  
-                </div>
-  
-              </div>
-            `;
-          }).join('')
-  
-        : `
-          <div style="
-            color:var(--ink-faint);
-            font-size:12px;
-            padding:10px 0;
-          ">
-            ยังไม่มีประวัติออก / เข้าโรงงาน
-          </div>
-        `;
-  
-  
-      /* ======================================================
-       * แถบสัดส่วนเวลา
-       * ====================================================== */
-  
-      const seg = (v,c) => v > 0
-        ? `<div class="${c}" style="width:${v/sum*100}%"></div>`
-        : '';
-  
-  
-      /* ======================================================
-       * Drawer
-       * ====================================================== */
-  
-      document.getElementById('drawer').innerHTML = `
-  
-        <div class="dh">
-  
-          <button
-            class="x"
-            onclick="closeDrawer()"
-          >
-            ×
-          </button>
-  
-          <span class="dbadge">
-            ${stateBadge(d.gpsState)}
-          </span>
-  
-          <div class="dname">
-            ${title}
-          </div>
-  
-          <div class="dmeta">
-            ${d.driverId || ''}
-            ·
-            ${d.vehicleType || ''}
-            ·
-            ${d.date || API_DATE || ''}
-          </div>
-  
-        </div>
-  
-  
-        <div class="dbody">
-  
-  
-          <!-- ==========================================
-               ระยะวิ่งจริงวันนี้
-          =========================================== -->
-  
-          <div class="dsec">
-  
-            <h3>
-              📍 ระยะวิ่งจริงวันนี้
-            </h3>
-  
-            <div class="dbar-wrap">
-  
-              <div class="dbar-track">
-  
-                ${seg(
-                  num(d.runMin),
-                  'seg-h'
-                )}
-  
-                ${seg(
-                  num(d.idleMin),
-                  'seg-i'
-                )}
-  
-                ${seg(
-                  num(d.parkMin),
-                  'seg-s'
-                )}
-  
-              </div>
-  
-  
-              <div class="dbar-leg">
-  
-                <span class="l">
-  
-                  <span class="sw seg-h"></span>
-  
-                  เวลาวิ่ง
-  
-                  <b>
-                    ${fmtMin(d.runMin)} ชม.
-                  </b>
-  
-                </span>
-  
-  
-                <span class="l">
-  
-                  <span class="sw seg-i"></span>
-  
-                  จอดไม่ดับ
-  
-                  <b>
-                    ${fmtMin(d.idleMin)} ชม.
-                  </b>
-  
-                </span>
-  
-  
-                <span class="l">
-  
-                  <span class="sw seg-s"></span>
-  
-                  จอดดับ
-  
-                  <b>
-                    ${fmtMin(d.parkMin)} ชม.
-                  </b>
-  
-                </span>
-  
-              </div>
-  
+     }else{
+        const total = totalTime(d);
+      
+        if(metric === 'dtcDist'){
+          const pct = Math.min(100, Math.round(num(d.distanceKm) / TARGET_DIST * 100));
+          const total = totalTime(d);
+          const sum = total || 1;
+          const runMin = num(d.runMin);
+          const totalMin = runMin + num(d.idleMin) + num(d.parkMin);
+      
+          const avgSpeed = runMin > 0 ? num(d.distanceKm) / (runMin / 60) : 0;
+          const parkPct = totalMin > 0 ? Math.round(num(d.parkMin) / totalMin * 100) : 0;
+          const idlePct = totalMin > 0 ? Math.round(num(d.idleMin) / totalMin * 100) : 0;
+      
+          // ประวัติออก / เข้าโรงงานทุกครั้ง
+          const factoryTrips = Array.isArray(d.factoryTrips) ? d.factoryTrips : [];
+      
+          const tripHistoryHtml = factoryTrips.length
+            ? factoryTrips.map((t, idx) => {
+                const leaveTxt = t.leaveTime ? fmtDateTime(t.leaveTime) : '—';
+                const returnTxt = t.returnTime ? fmtDateTime(t.returnTime) : 'ยังไม่กลับ';
+                const isRunning = !t.returnTime;
+      
+                return `
+                  <div style="background:var(--canvas);border:1px solid var(--line);border-radius:12px;padding:13px 14px;margin-bottom:10px">
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px">
+                      <b style="font-size:13px;color:var(--ink)">รอบ ${idx + 1}${isRunning ? ' · กำลังวิ่ง' : ''}</b>
+                      <span class="src-pill ${isRunning ? 'st-run' : 'src-sheet'}">${isRunning ? 'กำลังวิ่ง' : 'จบรอบ'}</span>
+                    </div>
+      
+                    <div style="display:grid;grid-template-columns:58px 1fr;row-gap:7px;font-size:12.5px">
+                      <div style="color:var(--ink-faint)">ออก</div>
+                      <div style="text-align:right;font-family:'IBM Plex Mono',monospace;font-weight:700">${leaveTxt}</div>
+      
+                      <div style="color:var(--ink-faint)">กลับ</div>
+                      <div style="text-align:right;font-family:'IBM Plex Mono',monospace;font-weight:700;color:${isRunning ? 'var(--pine)' : 'var(--ink)'}">${returnTxt}</div>
+      
+                      <div style="color:var(--ink-faint)">ระยะ</div>
+                      <div style="text-align:right;font-family:'IBM Plex Mono',monospace;font-weight:700">${num(t.distanceKm).toLocaleString('th-TH')} กม.</div>
+                    </div>
+                  </div>`;
+              }).join('')
+            : `<div style="color:var(--ink-faint);font-size:12px;padding:10px 0">ยังไม่มีประวัติออก / เข้าโรงงาน</div>`;
+      
+          const seg = (v,c) => v > 0
+            ? `<div class="${c}" style="width:${v/sum*100}%"></div>`
+            : '';
+      
+          document.getElementById('drawer').innerHTML = `
+            <div class="dh">
+              <button class="x" onclick="closeDrawer()">×</button>
+              <span class="dbadge">${stateBadge(d.gpsState)}</span>
+              <div class="dname">${title}</div>
+              <div class="dmeta">${d.driverId || ''} · ${d.vehicleType || ''} · ${d.date || API_DATE || ''}</div>
             </div>
-  
-          </div>
-  
-  
-          <!-- ==========================================
-               รายละเอียด
-          =========================================== -->
-  
-          <div class="dsec">
-  
-            <h3>
-              🧾 รายละเอียด
-            </h3>
-  
-            <div class="dmetrics">
-  
-  
-              <div class="dm">
-  
-                <div class="v">
-                  ${Math.round(
-                    num(d.distanceKm)
-                  ).toLocaleString('th-TH')}
+      
+            <div class="dbody">
+              <div class="dsec">
+                <h3>📍 ระยะวิ่งจริงวันนี้</h3>
+                <div class="dbar-wrap">
+                  <div class="dbar-track">
+                    ${seg(num(d.runMin),'seg-h')}
+                    ${seg(num(d.idleMin),'seg-i')}
+                    ${seg(num(d.parkMin),'seg-s')}
+                  </div>
+      
+                  <div class="dbar-leg">
+                    <span class="l"><span class="sw seg-h"></span>เวลาวิ่ง <b>${fmtMin(d.runMin)} ชม.</b></span>
+                    <span class="l"><span class="sw seg-i"></span>จอดไม่ดับ <b>${fmtMin(d.idleMin)} ชม.</b></span>
+                    <span class="l"><span class="sw seg-s"></span>จอดดับ <b>${fmtMin(d.parkMin)} ชม.</b></span>
+                  </div>
                 </div>
-  
-                <div class="l">
-                  ระยะวิ่งจริง (กม.)
-                </div>
-  
               </div>
-  
-  
-              <div class="dm">
-  
-                <div class="v">
-                  ${avgSpeed.toFixed(1)}
+      
+              <div class="dsec">
+                <h3>🧾 รายละเอียด</h3>
+                <div class="dmetrics">
+                  <div class="dm"><div class="v">${Math.round(num(d.distanceKm)).toLocaleString('th-TH')}</div><div class="l">ระยะวิ่งจริง (กม.)</div></div>
+                  <div class="dm"><div class="v">${avgSpeed.toFixed(1)}</div><div class="l">ความเร็วเฉลี่ย (กม./ชม.)</div></div>
+                  <div class="dm"><div class="v">${fmtMin(d.runMin)}</div><div class="l">เวลาวิ่ง</div></div>
+                  <div class="dm"><div class="v">${fmtMin(d.idleMin)}</div><div class="l">เวลาจอดรถไม่ดับเครื่อง</div></div>
+                  <div class="dm"><div class="v">${idlePct}%</div><div class="l">จอดไม่ดับ คิดเป็น % ของเวลาทั้งหมด</div></div>
+                  <div class="dm"><div class="v">${num(d.idleCount)}</div><div class="l">จำนวนครั้งที่จอดรถไม่ดับเครื่อง</div></div>
+                  <div class="dm"><div class="v">${fmtMin(d.parkMin)}</div><div class="l">เวลาจอดรถดับเครื่อง</div></div>
+                  <div class="dm"><div class="v">${parkPct}%</div><div class="l">จอดดับ คิดเป็น % ของเวลาทั้งหมด</div></div>
+                  <div class="dm"><div class="v">${num(d.stopCount)}</div><div class="l">จำนวนครั้งเวลาจอดรถดับเครื่อง</div></div>
                 </div>
-  
-                <div class="l">
-                  ความเร็วเฉลี่ย (กม./ชม.)
-                </div>
-  
               </div>
-  
-  
-              <div class="dm">
-  
-                <div class="v">
-                  ${fmtMin(d.runMin)}
-                </div>
-  
-                <div class="l">
-                  เวลาวิ่ง
-                </div>
-  
+      
+              <div class="dsec">
+                <h3>🏭 ประวัติออก / เข้าโรงงาน</h3>
+                ${tripHistoryHtml}
               </div>
-  
-  
-              <div class="dm">
-  
-                <div class="v">
-                  ${fmtMin(d.idleMin)}
+      
+              <div class="dsec">
+                <h3>🎯 เทียบเป้าหมายระยะทาง</h3>
+                <div class="dgoal">
+                  <span>${num(d.distanceKm) >= TARGET_DIST ? '✅ ถึงเป้า' : '⚠️ ยังไม่ถึงเป้า'} (${TARGET_DIST} กม./วัน)</span>
+                  <b style="color:${num(d.distanceKm) >= TARGET_DIST ? 'var(--pine)' : 'var(--over)'}">${pct}%</b>
                 </div>
-  
-                <div class="l">
-                  เวลาจอดรถไม่ดับเครื่อง
-                </div>
-  
               </div>
-  
-  
-              <div class="dm">
-  
-                <div class="v">
-                  ${idlePct}%
-                </div>
-  
-                <div class="l">
-                  จอดไม่ดับ คิดเป็น % ของเวลาทั้งหมด
-                </div>
-  
-              </div>
-  
-  
-              <div class="dm">
-  
-                <div class="v">
-                  ${num(d.idleCount)}
-                </div>
-  
-                <div class="l">
-                  จำนวนครั้งที่จอดรถไม่ดับเครื่อง
-                </div>
-  
-              </div>
-  
-  
-              <div class="dm">
-  
-                <div class="v">
-                  ${fmtMin(d.parkMin)}
-                </div>
-  
-                <div class="l">
-                  เวลาจอดรถดับเครื่อง
-                </div>
-  
-              </div>
-  
-  
-              <div class="dm">
-  
-                <div class="v">
-                  ${parkPct}%
-                </div>
-  
-                <div class="l">
-                  จอดดับ คิดเป็น % ของเวลาทั้งหมด
-                </div>
-  
-              </div>
-  
-  
-              <div class="dm">
-  
-                <div class="v">
-                  ${num(d.stopCount)}
-                </div>
-  
-                <div class="l">
-                  จำนวนครั้งเวลาจอดรถดับเครื่อง
-                </div>
-  
-              </div>
-  
-  
             </div>
-  
-          </div>
-  
-  
-          <!-- ==========================================
-               ✅ ประวัติออก / เข้าโรงงาน
-          =========================================== -->
-  
-          <div class="dsec">
-  
-            <h3>
-              🏭 ประวัติออก / เข้าโรงงาน
-            </h3>
-  
-            ${tripHistoryHtml}
-  
-          </div>
-  
-  
-          <!-- ==========================================
-               เทียบเป้าหมาย
-          =========================================== -->
-  
-          <div class="dsec">
-  
-            <h3>
-              🎯 เทียบเป้าหมายระยะทาง
-            </h3>
-  
-            <div class="dgoal">
-  
-              <span>
-  
-                ${
-                  num(d.distanceKm) >= TARGET_DIST
-                    ? '✅ ถึงเป้า'
-                    : '⚠️ ยังไม่ถึงเป้า'
-                }
-  
-                (${TARGET_DIST} กม./วัน)
-  
-              </span>
-  
-              <b style="
-                color:${
-                  num(d.distanceKm) >= TARGET_DIST
-                    ? 'var(--pine)'
-                    : 'var(--over)'
-                }
-              ">
-                ${pct}%
-              </b>
-  
-            </div>
-  
-          </div>
-  
-  
-        </div>
-      `;
-  
-    } else {
+          `;
+      
+        } else {
         const sum = total || 1;
         const seg = (v,c) => v > 0 ? `<div class="${c}" style="width:${v/sum*100}%"></div>` : '';
     
