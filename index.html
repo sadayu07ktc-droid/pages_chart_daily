@@ -1171,6 +1171,32 @@
         </div>
         <div class="trow" style="margin-top:8px">ออเดอร์<span class="v">${d.orders || (d.orderIds||[]).length}</span></div>
         <div class="trow">ปริมาณ<span class="v">${Math.round(num(d.qty)).toLocaleString('th-TH')} ${unit}</span></div>`;
+    }else if(metric === 'dtcDist'){
+        const pct = Math.min(100, Math.round(num(d.distanceKm) / TARGET_DIST * 100));
+        const runMin = num(d.runMin);
+        const totalMin = runMin + num(d.idleMin) + num(d.parkMin);
+        const avgSpeed = runMin > 0 ? num(d.distanceKm) / (runMin / 60) : 0;
+        const parkPct = totalMin > 0 ? Math.round(num(d.parkMin) / totalMin * 100) : 0;
+        const idlePct = totalMin > 0 ? Math.round(num(d.idleMin) / totalMin * 100) : 0;
+        const showTimes = (range === 'today');
+        const leaveTxt = d.leaveTime ? fmtDateTime(d.leaveTime) : '';
+        const returnTxt = d.returnTime ? fmtDateTime(d.returnTime) : '';
+        const timesRow = (showTimes && (leaveTxt || returnTxt)) ? `
+          <div class="div"></div>
+          <div class="trow"><span class="sw" style="background:#2F6FD6"></span>ออกจากโรงงาน<span class="v">${leaveTxt || '—'}</span></div>
+          <div class="trow"><span class="sw" style="background:var(--pine)"></span>กลับถึงโรงงาน<span class="v">${returnTxt || 'ยังไม่กลับ'}</span></div>` : '';
+        tip.innerHTML = `
+          <h4>${title}<span class="day">${stateBadge(d.gpsState)}</span></h4>
+          <div class="trow"><span class="sw" style="background:var(--pine)"></span>ระยะวิ่งจริง<span class="v">${num(d.distanceKm).toLocaleString('th-TH')} กม.</span></div>
+          <div class="trow"><span class="sw seg-speed"></span>ความเร็วเฉลี่ย<span class="v">${avgSpeed.toFixed(1)} กม./ชม.</span></div>
+          <div class="div"></div>
+          <div class="big">ทำได้เทียบเป้า<b>${pct}%</b></div>
+          <div class="kpi2">
+            <div class="kc"><div class="kv">${fmtMin(d.runMin)}</div><div class="kl">เวลาวิ่ง</div></div>
+            <div class="kc"><div class="kv">${fmtMin(d.parkMin)}</div><div class="kl">จอดดับ (${parkPct}%)</div></div>
+            <div class="kc"><div class="kv">${fmtMin(d.idleMin)}</div><div class="kl">จอดไม่ดับ (${idlePct}%)</div></div>
+          </div>
+          ${timesRow}`;
     }else{
         const total = totalTime(d);
         tip.innerHTML = `
