@@ -392,6 +392,7 @@
         runMin,
         idleMin,
         parkMin,
+        actualTripMin: num(x.actualTripMin),
         leaveTime: x.leaveTime || '',
         returnTime: x.returnTime || '',
         
@@ -616,6 +617,7 @@
         heavyKm: num(x.heavyKm),
         lightKm: num(x.lightKm),
         pctHeavy: x.pctHeavy == null ? null : num(x.pctHeavy),
+        actualTripMin: num(x.actualTripMin),
   
         // ✅ สำคัญ: เดิมหายตรงนี้
         leaveTime: x.leaveTime || '',
@@ -1154,7 +1156,7 @@
         : API_MODE === 'summary'
           ? 'ข้อมูลน้ำมัน/ความเร็ว/กม.ต่อลิตร อ่านจาก LOG_DTC_DailySummary ตามช่วงวันที่ที่เลือก'
           : metric === 'dtcDist'
-            ? 'แท่งระยะวิ่งจริงใช้ข้อมูล DTC mileage วันนี้ · แยกจากระยะหนัก/เบาที่มาจาก LOG_Weight'
+            ? 'แท่งระยะวิ่งจริงใช้ DTC mileage ตามรอบออก/เข้าโรงงาน · รองรับรอบคาบเกี่ยวเที่ยงคืน'
             : 'แท่งเวลาใช้ข้อมูลสดจาก DTC / LOG_DailyCount · สีเขียว=วิ่ง สีส้ม=จอดไม่ดับ สีเทา=จอดดับ';
   }
 
@@ -1194,8 +1196,10 @@
     }else if(metric === 'dtcDist'){
         const pct = Math.min(100, Math.round(num(d.distanceKm) / TARGET_DIST * 100));
         const runMin = num(d.runMin);
+        const actualTripMin = num(d.actualTripMin);
         const totalMin = runMin + num(d.idleMin) + num(d.parkMin);
-        const avgSpeed = runMin > 0 ? num(d.distanceKm) / (runMin / 60) : 0;
+        const speedBaseMin = actualTripMin > 0 ? actualTripMin : runMin;
+        const avgSpeed = speedBaseMin > 0 ? num(d.distanceKm) / (speedBaseMin / 60) : 0;
         const parkPct = totalMin > 0 ? Math.round(num(d.parkMin) / totalMin * 100) : 0;
         const idlePct = totalMin > 0 ? Math.round(num(d.idleMin) / totalMin * 100) : 0;
         const showTimes = (range === 'today');
@@ -1212,7 +1216,7 @@
           <div class="div"></div>
           <div class="big">ทำได้เทียบเป้า<b>${pct}%</b></div>
           <div class="kpi2">
-            <div class="kc"><div class="kv">${fmtMin(d.runMin)}</div><div class="kl">เวลาวิ่ง</div></div>
+            <div class="kc"><div class="kv">${fmtMin(actualTripMin || d.runMin)}</div><div class="kl">${actualTripMin > 0 ? 'เวลารอบงานจริง' : 'เวลาวิ่ง'}</div></div>
             <div class="kc"><div class="kv">${fmtMin(d.parkMin)}</div><div class="kl">จอดดับ (${parkPct}%)</div></div>
             <div class="kc"><div class="kv">${fmtMin(d.idleMin)}</div><div class="kl">จอดไม่ดับ (${idlePct}%)</div></div>
           </div>
@@ -1325,9 +1329,11 @@
           const total = totalTime(d);
           const sum = total || 1;
           const runMin = num(d.runMin);
+          const actualTripMin = num(d.actualTripMin);
           const totalMin = runMin + num(d.idleMin) + num(d.parkMin);
+          const speedBaseMin = actualTripMin > 0 ? actualTripMin : runMin;
       
-          const avgSpeed = runMin > 0 ? num(d.distanceKm) / (runMin / 60) : 0;
+          const avgSpeed = speedBaseMin > 0 ? num(d.distanceKm) / (speedBaseMin / 60) : 0;
           const parkPct = totalMin > 0 ? Math.round(num(d.parkMin) / totalMin * 100) : 0;
           const idlePct = totalMin > 0 ? Math.round(num(d.idleMin) / totalMin * 100) : 0;
       
@@ -1395,6 +1401,7 @@
                 <h3>🧾 รายละเอียด</h3>
                 <div class="dmetrics">
                   <div class="dm"><div class="v">${Math.round(num(d.distanceKm)).toLocaleString('th-TH')}</div><div class="l">ระยะวิ่งจริง (กม.)</div></div>
+                  <div class="dm"><div class="v">${fmtMin(actualTripMin || d.runMin)}</div><div class="l">${actualTripMin > 0 ? 'เวลารอบงานจริง' : 'เวลาวิ่ง'}</div></div>
                   <div class="dm"><div class="v">${avgSpeed.toFixed(1)}</div><div class="l">ความเร็วเฉลี่ย (กม./ชม.)</div></div>
                   <div class="dm"><div class="v">${fmtMin(d.runMin)}</div><div class="l">เวลาวิ่ง</div></div>
                   <div class="dm"><div class="v">${fmtMin(d.idleMin)}</div><div class="l">เวลาจอดรถไม่ดับเครื่อง</div></div>
