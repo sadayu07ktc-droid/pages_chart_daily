@@ -584,10 +584,12 @@
 
   function toChartItem(x){
     const useOrder = API_MODE === 'order';
+  
     return {
       l1: x.plate || x.driverId || x.key || '—',
       l2: x.name || x.driverName || '',
       src: x.src || (useOrder ? 'Log_Weight' : 'live'),
+  
       d: {
         date: x.date || '',
         key: x.key || '',
@@ -600,17 +602,21 @@
         driverName: x.name || '',
         vehicleType: x.vehicleType || '',
         gpsState: x.gpsState || '',
-
+  
         hasRunToday: x.hasRunToday === true,
         firstRunTime: x.firstRunTime || '',
         activeMinFromFirstRun: num(x.activeMinFromFirstRun),
         chartStatusLabel: x.chartStatusLabel || '',
-
+  
         distanceKm: num(x.distanceKm),
         heavyKm: num(x.heavyKm),
         lightKm: num(x.lightKm),
         pctHeavy: x.pctHeavy == null ? null : num(x.pctHeavy),
-
+  
+        // ✅ สำคัญ: เดิมหายตรงนี้
+        leaveTime: x.leaveTime || '',
+        returnTime: x.returnTime || '',
+  
         runMin: num(x.runMin),
         idleMin: num(x.idleMin),
         parkMin: num(x.parkMin),
@@ -619,7 +625,7 @@
         stopCount: num(x.stopCount),
         overtime4: num(x.overtime4),
         overtime8: num(x.overtime8),
-
+  
         trips: num(x.trips),
         orders: num(x.orders),
         liters: num(x.liters),
@@ -631,15 +637,21 @@
         unit: x.unit || '',
         costPerUnit: x.costPerUnit == null ? null : num(x.costPerUnit),
         kmPerLiter: x.kmPerLiter == null ? null : num(x.kmPerLiter),
-
+  
         fuelLiters: num(x.fuelLiters),
         kmPerLiterEcu: num(x.kmPerLiterEcu),
         avgSpeed: num(x.avgSpeed),
         maxSpeed: num(x.maxSpeed),
         overSpeedCount: num(x.overSpeedCount),
         gpsId: x.gpsId || '',
-
-        src: x.src || (useOrder ? 'Log_Weight' : (API_MODE === 'summary' ? 'LOG_DTC_DailySummary' : 'live'))
+  
+        src: x.src || (
+          useOrder
+            ? 'Log_Weight'
+            : (API_MODE === 'summary'
+                ? 'LOG_DTC_DailySummary'
+                : 'live')
+        )
       }
     };
   }
