@@ -1173,9 +1173,10 @@
       if(metric === 'dtcDist'){
         const pct = Math.min(100, Math.round(num(d.distanceKm) / TARGET_DIST * 100));
         const runMin = num(d.runMin);
+        const totalMin = runMin + num(d.idleMin) + num(d.parkMin);   // เวลาออกทำงานทั้งหมด
         const avgSpeed = runMin > 0 ? num(d.distanceKm) / (runMin / 60) : 0;
-        const parkPct = runMin > 0 ? Math.round(num(d.parkMin) / runMin * 100) : 0;
-        const idlePct = runMin > 0 ? Math.round(num(d.idleMin) / runMin * 100) : 0;
+        const parkPct = totalMin > 0 ? Math.round(num(d.parkMin) / totalMin * 100) : 0;
+        const idlePct = totalMin > 0 ? Math.round(num(d.idleMin) / totalMin * 100) : 0;
     
         tip.innerHTML = `
           <h4>${title}<span class="day">${stateBadge(d.gpsState)}</span></h4>
@@ -1359,9 +1360,10 @@
         const total = totalTime(d);
         const sum = total || 1;
         const runMin = num(d.runMin);
+        const totalMin = runMin + num(d.idleMin) + num(d.parkMin);   // เวลาออกทำงานทั้งหมด
         const avgSpeed = runMin > 0 ? num(d.distanceKm) / (runMin / 60) : 0;
-        const parkPct = runMin > 0 ? Math.round(num(d.parkMin) / runMin * 100) : 0;
-        const idlePct = runMin > 0 ? Math.round(num(d.idleMin) / runMin * 100) : 0;
+        const parkPct = totalMin > 0 ? Math.round(num(d.parkMin) / totalMin * 100) : 0;
+        const idlePct = totalMin > 0 ? Math.round(num(d.idleMin) / totalMin * 100) : 0;
       
         const seg = (v,c) => v > 0
           ? `<div class="${c}" style="width:${v/sum*100}%"></div>`
