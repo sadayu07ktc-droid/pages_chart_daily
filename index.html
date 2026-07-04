@@ -472,6 +472,8 @@
         heavyKm: num(x.heavyKm),
         lightKm: num(x.lightKm),
         pctHeavy: x.pctHeavy == null ? null : num(x.pctHeavy),
+        leaveTime: x.leaveTime || '',
+        returnTime: x.returnTime || '',
         liters: num(x.liters),
         fuelCost: num(x.fuelCost),
         otherCost: num(x.otherCost),
@@ -1177,6 +1179,13 @@
         const avgSpeed = runMin > 0 ? num(d.distanceKm) / (runMin / 60) : 0;
         const parkPct = totalMin > 0 ? Math.round(num(d.parkMin) / totalMin * 100) : 0;
         const idlePct = totalMin > 0 ? Math.round(num(d.idleMin) / totalMin * 100) : 0;
+        const showTimes = (range === 'today');
+        const leaveTxt = d.leaveTime ? fmtDateTime(d.leaveTime) : '';
+        const returnTxt = d.returnTime ? fmtDateTime(d.returnTime) : '';
+        const timesRow = (showTimes && (leaveTxt || returnTxt)) ? `
+          <div class="div"></div>
+          <div class="trow"><span class="sw" style="background:#2F6FD6"></span>ออกจากโรงงาน<span class="v">${leaveTxt || '—'}</span></div>
+          <div class="trow"><span class="sw" style="background:var(--pine)"></span>กลับถึงโรงงาน<span class="v">${returnTxt || 'ยังไม่กลับ'}</span></div>` : '';
     
         tip.innerHTML = `
           <h4>${title}<span class="day">${stateBadge(d.gpsState)}</span></h4>
@@ -1198,7 +1207,8 @@
               <div class="kv">${fmtMin(d.idleMin)}</div>
               <div class="kl">จอดไม่ดับ (${idlePct}%)</div>
             </div>
-          </div>`;
+          </div>
+          ${timesRow}`;
       }else{
         const total = totalTime(d);
       
@@ -1446,6 +1456,21 @@
               </div>
             </div>
       
+            ${(range === 'today' && (d.leaveTime || d.returnTime)) ? `
+            <div class="dsec">
+              <h3>🏭 เวลาออก / เข้าโรงงาน</h3>
+              <div class="dmetrics">
+                <div class="dm">
+                  <div class="v" style="font-size:16px">${d.leaveTime ? fmtDateTime(d.leaveTime) : '—'}</div>
+                  <div class="l">ออกจากโรงงาน</div>
+                </div>
+                <div class="dm">
+                  <div class="v" style="font-size:16px">${d.returnTime ? fmtDateTime(d.returnTime) : 'ยังไม่กลับ'}</div>
+                  <div class="l">กลับถึงโรงงาน</div>
+                </div>
+              </div>
+            </div>` : ''}
+
             <div class="dsec">
               <h3>🎯 เทียบเป้าหมายระยะทาง</h3>
               <div class="dgoal">
