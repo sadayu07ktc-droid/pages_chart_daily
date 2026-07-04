@@ -392,6 +392,8 @@
         runMin,
         idleMin,
         parkMin,
+        leaveTime: x.leaveTime || '',
+        returnTime: x.returnTime || '',
         idleCount: hasRunToday ? num(x.idleCount) : 0,
         idleOverCount: hasRunToday ? num(x.idleOverCount) : 0,
         stopCount: hasRunToday ? num(x.stopCount) : 0,
