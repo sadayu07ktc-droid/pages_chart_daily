@@ -141,9 +141,15 @@
   .route-map-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 16px;background:linear-gradient(135deg,var(--pine),var(--pine-deep));color:#fff}
   .route-map-title{font-size:16px;font-weight:900}.route-map-sub{font-size:12px;opacity:.82;margin-top:2px}
   .route-map-close{width:36px;height:36px;border:0;border-radius:10px;background:rgba(255,255,255,.16);color:#fff;font-size:24px;cursor:pointer}
-  #routeMap{flex:1;min-height:320px}.route-map-foot{padding:10px 14px;background:#f6faf8;border-top:1px solid var(--line);font-size:12px;color:var(--ink-soft)}
+  #routeMap{width:100%;height:100%;min-height:320px}.route-map-foot{padding:10px 14px;background:#f6faf8;border-top:1px solid var(--line);font-size:12px;color:var(--ink-soft)}
   .route-start-icon,.route-end-icon{width:18px;height:18px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.25)}
   .route-start-icon{background:#2474e5}.route-end-icon{background:#0f8a5f}
+  .route-arrow-icon{background:transparent;border:0}
+  .route-arrow{font-size:18px;font-weight:900;color:#0d6f50;text-shadow:0 1px 3px rgba(255,255,255,.95),0 0 2px #fff;line-height:1}
+  .stop-off-marker{width:22px;height:22px;border-radius:50%;background:#6b7280;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.28);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:900}
+  .route-stop-chips{position:absolute;left:14px;bottom:14px;z-index:500;display:flex;flex-wrap:wrap;gap:6px;max-width:min(72%,620px)}
+  .route-stop-chip{border:1px solid rgba(107,114,128,.28);background:rgba(255,255,255,.95);color:#374151;border-radius:999px;padding:6px 9px;font-size:11px;font-weight:800;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+  .route-stop-chip:hover{background:#fff}
   .route-speed-legend{background:rgba(255,255,255,.94);padding:8px 10px;border-radius:10px;box-shadow:0 3px 12px rgba(0,0,0,.16);font-size:11px;line-height:1.5;color:#24352f}
   .route-speed-legend .r{display:flex;align-items:center;gap:7px;white-space:nowrap}
   .route-speed-legend .c{width:18px;height:4px;border-radius:999px}
@@ -252,7 +258,10 @@
       <div><div class="route-map-title">🗺️ ประวัติการวิ่งงาน</div><div class="route-map-sub" id="routeMapSub">ตั้งแต่ออกจากโรงงาน</div></div>
       <button class="route-map-close" onclick="closeRouteHistoryMap()">×</button>
     </div>
-    <div id="routeMap"></div>
+    <div style="position:relative;flex:1;min-height:320px">
+      <div id="routeMap" style="height:100%"></div>
+      <div class="route-stop-chips" id="routeStopChips"></div>
+    </div>
     <div class="route-map-foot" id="routeMapFoot"></div>
   </div>
 </div>
@@ -460,6 +469,15 @@
           ? x.routePoints.map(p => ({lat:num(p.lat), lon:num(p.lon), time:p.time || '', speed:num(p.speed)})).filter(p => p.lat && p.lon)
           : [],
         routeSnapSource: x.routeSnapSource || 'raw_gps',
+        stopPoints: Array.isArray(x.stopPoints)
+          ? x.stopPoints.map(s => ({
+              lat: num(s.lat),
+              lon: num(s.lon),
+              startTime: s.startTime || '',
+              endTime: s.endTime || '',
+              durationMin: num(s.durationMin)
+            })).filter(s => s.lat && s.lon)
+          : [],
         
         factoryTrips: Array.isArray(x.factoryTrips)
           ? x.factoryTrips
@@ -700,6 +718,15 @@
           ? x.routePoints.map(p => ({lat:num(p.lat), lon:num(p.lon), time:p.time || '', speed:num(p.speed)})).filter(p => p.lat && p.lon)
           : [],
         routeSnapSource: x.routeSnapSource || 'raw_gps',
+        stopPoints: Array.isArray(x.stopPoints)
+          ? x.stopPoints.map(s => ({
+              lat: num(s.lat),
+              lon: num(s.lon),
+              startTime: s.startTime || '',
+              endTime: s.endTime || '',
+              durationMin: num(s.durationMin)
+            })).filter(s => s.lat && s.lon)
+          : [],
         
         factoryTrips: Array.isArray(x.factoryTrips)
           ? x.factoryTrips
@@ -1635,6 +1662,49 @@
   let ROUTE_MAP = null;
   let ROUTE_LAYER = null;
 
+  function bearingDeg(a, b){
+    const lat1 = a.lat * Math.PI / 180;
+    const lat2 = b.lat * Math.PI / 180;
+    const dLon = (b.lon - a.lon) * Math.PI / 180;
+    const y = Math.sin(dLon) * Math.cos(lat2);
+    const x = Math.cos(lat1) * Math.sin(lat2) -
+      Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+    return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+  }
+
+  function addRouteArrows(points, layer){
+    const step = Math.max(12, Math.floor(points.length / 18));
+
+    for(let i = step; i < points.length; i += step){
+      const a = points[i - 1];
+      const b = points[i];
+      if(!a || !b) continue;
+
+      const angle = bearingDeg(a, b);
+      const icon = L.divIcon({
+        className:'route-arrow-icon',
+        html:`<div class="route-arrow" style="transform:rotate(${angle}deg)">➤</div>`,
+        iconSize:[22,22],
+        iconAnchor:[11,11]
+      });
+
+      L.marker([b.lat,b.lon],{
+        icon,
+        interactive:false,
+        keyboard:false
+      }).addTo(layer);
+    }
+  }
+
+  function openStopMarker(index){
+    const markers = window.__ROUTE_STOP_MARKERS__ || [];
+    const marker = markers[index];
+    if(marker){
+      ROUTE_MAP.panTo(marker.getLatLng());
+      marker.openPopup();
+    }
+  }
+
   function openRouteHistoryMap(d){
     const points = Array.isArray(d.routePoints) ? d.routePoints : [];
     if(points.length < 2){
@@ -1714,6 +1784,43 @@
 
         segLine.addTo(ROUTE_LAYER);
       }
+
+      // ลูกศรตามลำดับเวลาจริงของเส้นทาง
+      addRouteArrows(points, ROUTE_LAYER);
+
+      // จุดจอดดับเครื่อง + ชิปกดดู
+      const stopPoints = Array.isArray(d.stopPoints) ? d.stopPoints : [];
+      const chipBox = document.getElementById('routeStopChips');
+      window.__ROUTE_STOP_MARKERS__ = [];
+      chipBox.innerHTML = '';
+
+      stopPoints.forEach((s, idx) => {
+        const stopIcon = L.divIcon({
+          className:'',
+          html:'<div class="stop-off-marker">■</div>',
+          iconSize:[22,22],
+          iconAnchor:[11,11]
+        });
+
+        const coord = `${num(s.lat).toFixed(6)}, ${num(s.lon).toFixed(6)}`;
+        const marker = L.marker([s.lat,s.lon],{icon:stopIcon})
+          .bindPopup(
+            `<b>🅿️ จอดดับเครื่อง #${idx + 1}</b>` +
+            `<br>เริ่ม ${s.startTime ? fmtDateTime(s.startTime) : '—'}` +
+            `<br>ออก ${s.endTime ? fmtDateTime(s.endTime) : '—'}` +
+            `<br>รวม ${num(s.durationMin).toFixed(1)} นาที` +
+            `<br><span style="font-family:'IBM Plex Mono',monospace">${coord}</span>`
+          )
+          .addTo(ROUTE_LAYER);
+
+        window.__ROUTE_STOP_MARKERS__.push(marker);
+
+        const btn = document.createElement('button');
+        btn.className = 'route-stop-chip';
+        btn.textContent = `■ จอด ${idx + 1} · ${num(s.durationMin).toFixed(0)} นาที`;
+        btn.onclick = () => openStopMarker(idx);
+        chipBox.appendChild(btn);
+      });
 
       const startIcon = L.divIcon({className:'',html:'<div class="route-start-icon"></div>',iconSize:[18,18],iconAnchor:[9,9]});
       const endIcon = L.divIcon({className:'',html:'<div class="route-end-icon"></div>',iconSize:[18,18],iconAnchor:[9,9]});
