@@ -135,6 +135,15 @@
   .map-route-btn:hover{transform:translateY(-1px);filter:brightness(1.04)}
   .map-route-btn:active{transform:translateY(0)}
   .map-route-btn:disabled{opacity:.45;cursor:not-allowed;transform:none;filter:none}
+  .route-map-modal{position:fixed;inset:0;background:rgba(8,28,20,.58);display:flex;align-items:center;justify-content:center;padding:18px;opacity:0;visibility:hidden;transition:.18s;z-index:140}
+  .route-map-modal.show{opacity:1;visibility:visible}
+  .route-map-card{width:min(920px,96vw);height:min(720px,88vh);background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.28);display:flex;flex-direction:column}
+  .route-map-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 16px;background:linear-gradient(135deg,var(--pine),var(--pine-deep));color:#fff}
+  .route-map-title{font-size:16px;font-weight:900}.route-map-sub{font-size:12px;opacity:.82;margin-top:2px}
+  .route-map-close{width:36px;height:36px;border:0;border-radius:10px;background:rgba(255,255,255,.16);color:#fff;font-size:24px;cursor:pointer}
+  #routeMap{flex:1;min-height:320px}.route-map-foot{padding:10px 14px;background:#f6faf8;border-top:1px solid var(--line);font-size:12px;color:var(--ink-soft)}
+  .route-start-icon,.route-end-icon{width:18px;height:18px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+  .route-start-icon{background:#2474e5}.route-end-icon{background:#0f8a5f}
 .dh .x{position:absolute;top:14px;right:16px;width:32px;height:32px;border-radius:9px;border:none;background:rgba(255,255,255,.16);color:#fff;font-size:19px;cursor:pointer;line-height:1}
   .dh .dbadge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;background:rgba(255,255,255,.16);padding:3px 10px;border-radius:20px}
   .dh .dname{font-size:19px;font-weight:700;margin-top:11px}
@@ -163,6 +172,7 @@
   .src-heavy{background:#FCF4DE;color:#B58A12}
 
 </style>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 </head>
 <body>
 <div class="back-nav">
@@ -232,6 +242,18 @@
 <div class="scrim" id="scrim" onclick="closeDrawer()"></div>
 <div class="drawer" id="drawer"></div>
 
+
+<div class="route-map-modal" id="routeMapModal" aria-hidden="true">
+  <div class="route-map-card">
+    <div class="route-map-head">
+      <div><div class="route-map-title">🗺️ ประวัติการวิ่งงาน</div><div class="route-map-sub" id="routeMapSub">ตั้งแต่ออกจากโรงงาน</div></div>
+      <button class="route-map-close" onclick="closeRouteHistoryMap()">×</button>
+    </div>
+    <div id="routeMap"></div>
+    <div class="route-map-foot" id="routeMapFoot"></div>
+  </div>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script>
   const GAS_URL = 'https://script.google.com/macros/s/AKfycbw4UvKuRrAQ_3Ldm8U0VJqfjfBQUSYaTEdrxkdXUVN98G68XseCquhDeXfMgU8cVYaY/exec';
 
@@ -431,6 +453,9 @@
         liveSpeed: num(x.liveSpeed),
         liveLat: x.liveLat == null ? null : num(x.liveLat),
         liveLon: x.liveLon == null ? null : num(x.liveLon),
+        routePoints: Array.isArray(x.routePoints)
+          ? x.routePoints.map(p => ({lat:num(p.lat), lon:num(p.lon), time:p.time || ''})).filter(p => p.lat && p.lon)
+          : [],
         
         factoryTrips: Array.isArray(x.factoryTrips)
           ? x.factoryTrips
@@ -667,6 +692,9 @@
         liveSpeed: num(x.liveSpeed),
         liveLat: x.liveLat == null ? null : num(x.liveLat),
         liveLon: x.liveLon == null ? null : num(x.liveLon),
+        routePoints: Array.isArray(x.routePoints)
+          ? x.routePoints.map(p => ({lat:num(p.lat), lon:num(p.lon), time:p.time || ''})).filter(p => p.lat && p.lon)
+          : [],
         
         factoryTrips: Array.isArray(x.factoryTrips)
           ? x.factoryTrips
@@ -1523,9 +1551,9 @@
       
               <div class="dsec">
                 <button class="map-route-btn"
-                  onclick="openStationMap(${d.liveLat == null ? 'null' : d.liveLat}, ${d.liveLon == null ? 'null' : d.liveLon})"
-                  ${d.liveLat == null || d.liveLon == null ? 'disabled' : ''}>
-                  🗺️ ดูแผนที่การวิ่งงาน · Station to Station
+                  onclick='openRouteHistoryMap(${JSON.stringify(d).replace(/'/g,"&#39;")})'
+                  ${!Array.isArray(d.routePoints) || d.routePoints.length < 2 ? 'disabled' : ''}>
+                  🗺️ ดูประวัติการวิ่ง · Station to Station
                 </button>
               </div>
 
@@ -1599,25 +1627,55 @@
     document.getElementById('scrim').classList.remove('show');
   }
 
-  function openStationMap(lat, lon){
-    lat = Number(lat);
-    lon = Number(lon);
+  let ROUTE_MAP = null;
+  let ROUTE_LAYER = null;
 
-    if(!isFinite(lat) || !isFinite(lon) || !lat || !lon){
-      alert('ยังไม่มีพิกัด GPS ปัจจุบันของรถคันนี้');
+  function openRouteHistoryMap(d){
+    const points = Array.isArray(d.routePoints) ? d.routePoints : [];
+    if(points.length < 2){
+      alert('ยังไม่มีประวัติเส้นทางจาก DTC getHistory สำหรับรอบนี้');
       return;
     }
 
-    const factoryLat = 13.160065;
-    const factoryLon = 101.333419;
+    const modal = document.getElementById('routeMapModal');
+    const sub = document.getElementById('routeMapSub');
+    const foot = document.getElementById('routeMapFoot');
+    const startTxt = d.leaveTime ? fmtDateTime(d.leaveTime) : '—';
+    const endTxt = d.returnTime ? fmtDateTime(d.returnTime) : 'กำลังวิ่ง';
 
-    const url =
-      'https://www.google.com/maps/dir/?api=1' +
-      '&origin=' + encodeURIComponent(factoryLat + ',' + factoryLon) +
-      '&destination=' + encodeURIComponent(lat + ',' + lon) +
-      '&travelmode=driving';
+    sub.textContent = `${d.plate || ''} · ออก ${startTxt} · ${d.returnTime ? 'กลับ ' + endTxt : 'ยังไม่กลับ'}`;
+    foot.textContent = `แสดง ${points.length.toLocaleString('th-TH')} จุดจาก DTC History · ระยะรอบ ${num(d.distanceKm).toLocaleString('th-TH')} กม.`;
 
-    window.open(url, '_blank', 'noopener');
+    modal.classList.add('show');
+    modal.setAttribute('aria-hidden','false');
+
+    setTimeout(() => {
+      if(!ROUTE_MAP){
+        ROUTE_MAP = L.map('routeMap', {zoomControl:true});
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'&copy; OpenStreetMap'}).addTo(ROUTE_MAP);
+      }
+      if(ROUTE_LAYER){ ROUTE_LAYER.remove(); ROUTE_LAYER = null; }
+
+      const latlngs = points.map(p => [p.lat, p.lon]);
+      ROUTE_LAYER = L.layerGroup().addTo(ROUTE_MAP);
+      L.polyline(latlngs, {color:'#0f7d59',weight:5,opacity:.9}).addTo(ROUTE_LAYER);
+
+      const startIcon = L.divIcon({className:'',html:'<div class="route-start-icon"></div>',iconSize:[18,18],iconAnchor:[9,9]});
+      const endIcon = L.divIcon({className:'',html:'<div class="route-end-icon"></div>',iconSize:[18,18],iconAnchor:[9,9]});
+
+      const first = points[0], last = points[points.length-1];
+      L.marker([first.lat,first.lon],{icon:startIcon}).bindPopup(`ออกจากโรงงาน<br><b>${first.time ? fmtDateTime(first.time) : startTxt}</b>`).addTo(ROUTE_LAYER);
+      L.marker([last.lat,last.lon],{icon:endIcon}).bindPopup(`${d.returnTime ? 'กลับถึงโรงงาน' : 'ตำแหน่งล่าสุด'}<br><b>${last.time ? fmtDateTime(last.time) : endTxt}</b>`).addTo(ROUTE_LAYER);
+
+      ROUTE_MAP.fitBounds(L.latLngBounds(latlngs),{padding:[28,28]});
+      ROUTE_MAP.invalidateSize();
+    },80);
+  }
+
+  function closeRouteHistoryMap(){
+    const modal = document.getElementById('routeMapModal');
+    modal.classList.remove('show');
+    modal.setAttribute('aria-hidden','true');
   }
 
   async function reloadAndRender(){
