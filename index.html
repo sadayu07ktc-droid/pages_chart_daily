@@ -260,6 +260,7 @@
     </div>
     <div style="position:relative;flex:1;min-height:320px">
       <div id="routeMap" style="height:100%"></div>
+      <div class="route-stop-chips" id="routeStopChips"></div>
     </div>
     <div class="route-map-foot" id="routeMapFoot"></div>
   </div>
@@ -1796,7 +1797,9 @@
 
       // จุดจอดดับเครื่อง + ชิปกดดู
       const stopPoints = Array.isArray(d.stopPoints) ? d.stopPoints : [];
+      const chipBox = document.getElementById('routeStopChips');
       window.__ROUTE_STOP_MARKERS__ = [];
+      chipBox.innerHTML = '';
 
       stopPoints.forEach((s, idx) => {
         const stopIcon = L.divIcon({
@@ -1806,7 +1809,6 @@
           iconAnchor:[11,11]
         });
 
-        const coord = `${num(s.lat).toFixed(6)}, ${num(s.lon).toFixed(6)}`;
         const stationTxt = s.stationName ? String(s.stationName) : '';
         const marker = L.marker([s.lat,s.lon],{icon:stopIcon})
           .bindPopup(
@@ -1814,12 +1816,21 @@
             `${stationTxt ? `<br>📍 <b>${stationTxt}</b>` : ''}` +
             `<br>เริ่ม ${s.startTime ? fmtDateTime(s.startTime) : '—'}` +
             `<br>ออก ${s.endTime ? fmtDateTime(s.endTime) : '—'}` +
-            `<br>รวม ${num(s.durationMin).toFixed(1)} นาที` +
-            `<br><span style="font-family:'IBM Plex Mono',monospace">${coord}</span>`
+            `<br>รวม ${num(s.durationMin).toFixed(1)} นาที`
           )
           .addTo(ROUTE_LAYER);
 
         window.__ROUTE_STOP_MARKERS__.push(marker);
+
+        const btn = document.createElement('button');
+        btn.className = 'route-stop-chip';
+
+        // ชิปด้านล่าง: แสดงลำดับจุดจอด + ระยะเวลา
+        // ไม่แสดงชื่อสถานี ชื่อสถานีค่อยดูตอนกด Popup
+        btn.textContent = `■ จอด ${idx + 1} · ${num(s.durationMin).toFixed(0)} นาที`;
+
+        btn.onclick = () => openStopMarker(idx);
+        chipBox.appendChild(btn);
       });
 
       const startIcon = L.divIcon({className:'',html:'<div class="route-start-icon"></div>',iconSize:[18,18],iconAnchor:[9,9]});
