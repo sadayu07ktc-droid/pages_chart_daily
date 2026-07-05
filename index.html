@@ -98,6 +98,10 @@
   .tip .trow{display:flex;align-items:center;gap:8px;font-size:12px;padding:3px 0}
   .tip .trow .sw{width:10px;height:10px;border-radius:3px}
   .tip .trow .v{margin-left:auto;font-weight:700;font-family:'IBM Plex Mono',monospace}
+  .dir-badge{display:inline-flex;align-items:center;padding:5px 10px;border-radius:999px;font-weight:800;font-family:'Noto Sans Thai',sans-serif;line-height:1.2}
+  .dir-in{background:#e6f7ef;color:#087a4f;border:1px solid #b9e8d2}
+  .dir-out{background:#fff0e3;color:#c45100;border:1px solid #ffd0a8}
+  .dir-neutral{background:#eef2f4;color:#65757c;border:1px solid #dbe3e6}
   .tip .div{border-top:1px solid var(--line);margin:8px 0}
   .tip .big{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--ink-soft)}
   .tip .big b{font-size:17px;color:var(--pine);font-family:'IBM Plex Mono',monospace}
@@ -1244,14 +1248,21 @@
         const currentLoc = locParts.join(' · ');
 
         let directionTxt = '';
-        if(d.direction === 'back') directionTxt = '↙ กำลังเข้า';
-        else if(d.direction === 'out') directionTxt = '↗ กำลังออก';
-        else if(d.dirText) directionTxt = d.dirText;
+        let directionClass = 'dir-neutral';
+        if(d.direction === 'back'){
+          directionTxt = '↙ วิ่งเข้า';
+          directionClass = 'dir-in';
+        }else if(d.direction === 'out'){
+          directionTxt = '↗ วิ่งออก';
+          directionClass = 'dir-out';
+        }else if(d.dirText){
+          directionTxt = d.dirText;
+        }
 
         const liveRow = (currentLoc || directionTxt || d.distFactory != null) ? `
           <div class="div"></div>
           ${currentLoc ? `<div class="trow">📍 โลเคชั่นปัจจุบัน<span class="v">${currentLoc}</span></div>` : ''}
-          ${directionTxt ? `<div class="trow">🧭 ทิศทาง<span class="v">${directionTxt}</span></div>` : ''}
+          ${directionTxt ? `<div class="trow">🧭 ทิศทาง<span class="v"><span class="dir-badge ${directionClass}">${directionTxt}</span></span></div>` : ''}
           ${d.distFactory != null ? `<div class="trow">🏭 ห่างโรงงาน<span class="v">${num(d.distFactory).toFixed(1)} กม.</span></div>` : ''}
           ${num(d.liveSpeed) > 0 ? `<div class="trow">⚡ ความเร็วสด<span class="v">${num(d.liveSpeed).toFixed(0)} กม./ชม.</span></div>` : ''}` : '';
         const timesRow = (showTimes && (leaveTxt || returnTxt)) ? `
