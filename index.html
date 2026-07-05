@@ -1681,9 +1681,14 @@
       if(!a || !b) continue;
 
       const angle = bearingDeg(a, b);
+
+      // สัญลักษณ์ ➤ ชี้ไปทางขวาโดยธรรมชาติ
+      // แต่ bearing 0° = ทิศเหนือ จึงต้องชดเชย -90°
+      const visualAngle = angle - 90;
+
       const icon = L.divIcon({
         className:'route-arrow-icon',
-        html:`<div class="route-arrow" style="transform:rotate(${angle}deg)">➤</div>`,
+        html:`<div class="route-arrow" style="transform:rotate(${visualAngle}deg)">➤</div>`,
         iconSize:[22,22],
         iconAnchor:[11,11]
       });
