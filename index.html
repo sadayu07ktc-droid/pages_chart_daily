@@ -459,6 +459,7 @@
         routePoints: Array.isArray(x.routePoints)
           ? x.routePoints.map(p => ({lat:num(p.lat), lon:num(p.lon), time:p.time || '', speed:num(p.speed)})).filter(p => p.lat && p.lon)
           : [],
+        routeSnapSource: x.routeSnapSource || 'raw_gps',
         
         factoryTrips: Array.isArray(x.factoryTrips)
           ? x.factoryTrips
@@ -698,6 +699,7 @@
         routePoints: Array.isArray(x.routePoints)
           ? x.routePoints.map(p => ({lat:num(p.lat), lon:num(p.lon), time:p.time || '', speed:num(p.speed)})).filter(p => p.lat && p.lon)
           : [],
+        routeSnapSource: x.routeSnapSource || 'raw_gps',
         
         factoryTrips: Array.isArray(x.factoryTrips)
           ? x.factoryTrips
@@ -1647,7 +1649,10 @@
     const endTxt = d.returnTime ? fmtDateTime(d.returnTime) : 'กำลังวิ่ง';
 
     sub.textContent = `${d.plate || ''} · ออก ${startTxt} · ${d.returnTime ? 'กลับ ' + endTxt : 'ยังไม่กลับ'}`;
-    foot.textContent = `แสดง ${points.length.toLocaleString('th-TH')} จุดจาก DTC History · ระยะรอบ ${num(d.distanceKm).toLocaleString('th-TH')} กม.`;
+    const snapTxt = String(d.routeSnapSource || '').indexOf('google_roads') === 0
+      ? 'Google Snap to Roads'
+      : 'GPS จุดดิบ';
+    foot.textContent = `แสดง ${points.length.toLocaleString('th-TH')} จุด · ${snapTxt} · ระยะรอบ ${num(d.distanceKm).toLocaleString('th-TH')} กม.`;
 
     modal.classList.add('show');
     modal.setAttribute('aria-hidden','false');
