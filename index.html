@@ -1209,7 +1209,7 @@
         const avgSpeed = speedBaseMin > 0 ? num(d.distanceKm) / (speedBaseMin / 60) : 0;
         const parkPct = totalMin > 0 ? Math.round(num(d.parkMin) / totalMin * 100) : 0;
         const idlePct = totalMin > 0 ? Math.round(num(d.idleMin) / totalMin * 100) : 0;
-        const showTimes = (range === 'today');
+        const showTimes = true; // แสดงเวลาออก/กลับใน Tooltip ทุกช่วงข้อมูล ถ้ามีค่า
         const leaveTxt = d.leaveTime ? fmtDateTime(d.leaveTime) : '';
         const returnTxt = d.returnTime ? fmtDateTime(d.returnTime) : '';
         const timesRow = (showTimes && (leaveTxt || returnTxt)) ? `
