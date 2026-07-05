@@ -131,6 +131,10 @@
   .dh-dir-in{background:#dff6ea;color:#087a4f}
   .dh-dir-out{background:#fff0e3;color:#c45100}
   .dh-dir-neutral{background:rgba(255,255,255,.16);color:#fff}
+  .map-route-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:9px;border:0;border-radius:12px;padding:12px 14px;background:linear-gradient(135deg,var(--pine),var(--pine-deep));color:#fff;font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 8px 18px rgba(15,90,64,.16);transition:.15s}
+  .map-route-btn:hover{transform:translateY(-1px);filter:brightness(1.04)}
+  .map-route-btn:active{transform:translateY(0)}
+  .map-route-btn:disabled{opacity:.45;cursor:not-allowed;transform:none;filter:none}
 .dh .x{position:absolute;top:14px;right:16px;width:32px;height:32px;border-radius:9px;border:none;background:rgba(255,255,255,.16);color:#fff;font-size:19px;cursor:pointer;line-height:1}
   .dh .dbadge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;background:rgba(255,255,255,.16);padding:3px 10px;border-radius:20px}
   .dh .dname{font-size:19px;font-weight:700;margin-top:11px}
@@ -425,6 +429,8 @@
         dirText: x.dirText || '',
         distFactory: x.distFactory == null ? null : num(x.distFactory),
         liveSpeed: num(x.liveSpeed),
+        liveLat: x.liveLat == null ? null : num(x.liveLat),
+        liveLon: x.liveLon == null ? null : num(x.liveLon),
         
         factoryTrips: Array.isArray(x.factoryTrips)
           ? x.factoryTrips
@@ -659,6 +665,8 @@
         dirText: x.dirText || '',
         distFactory: x.distFactory == null ? null : num(x.distFactory),
         liveSpeed: num(x.liveSpeed),
+        liveLat: x.liveLat == null ? null : num(x.liveLat),
+        liveLon: x.liveLon == null ? null : num(x.liveLon),
         
         factoryTrips: Array.isArray(x.factoryTrips)
           ? x.factoryTrips
@@ -1514,6 +1522,14 @@
               </div>
       
               <div class="dsec">
+                <button class="map-route-btn"
+                  onclick="openStationMap(${d.liveLat == null ? 'null' : d.liveLat}, ${d.liveLon == null ? 'null' : d.liveLon})"
+                  ${d.liveLat == null || d.liveLon == null ? 'disabled' : ''}>
+                  🗺️ ดูแผนที่การวิ่งงาน · Station to Station
+                </button>
+              </div>
+
+              <div class="dsec">
                 <h3>🎯 เทียบเป้าหมายระยะทาง</h3>
                 <div class="dgoal">
                   <span>${num(d.distanceKm) >= TARGET_DIST ? '✅ ถึงเป้า' : '⚠️ ยังไม่ถึงเป้า'} (${TARGET_DIST} กม./วัน)</span>
@@ -1581,6 +1597,27 @@
   function closeDrawer(){
     document.getElementById('drawer').classList.remove('show');
     document.getElementById('scrim').classList.remove('show');
+  }
+
+  function openStationMap(lat, lon){
+    lat = Number(lat);
+    lon = Number(lon);
+
+    if(!isFinite(lat) || !isFinite(lon) || !lat || !lon){
+      alert('ยังไม่มีพิกัด GPS ปัจจุบันของรถคันนี้');
+      return;
+    }
+
+    const factoryLat = 13.160065;
+    const factoryLon = 101.333419;
+
+    const url =
+      'https://www.google.com/maps/dir/?api=1' +
+      '&origin=' + encodeURIComponent(factoryLat + ',' + factoryLon) +
+      '&destination=' + encodeURIComponent(lat + ',' + lon) +
+      '&travelmode=driving';
+
+    window.open(url, '_blank', 'noopener');
   }
 
   async function reloadAndRender(){
