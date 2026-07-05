@@ -475,7 +475,8 @@
               lon: num(s.lon),
               startTime: s.startTime || '',
               endTime: s.endTime || '',
-              durationMin: num(s.durationMin)
+              durationMin: num(s.durationMin),
+              stationName: s.stationName || ''
             })).filter(s => s.lat && s.lon)
           : [],
         
@@ -724,7 +725,8 @@
               lon: num(s.lon),
               startTime: s.startTime || '',
               endTime: s.endTime || '',
-              durationMin: num(s.durationMin)
+              durationMin: num(s.durationMin),
+              stationName: s.stationName || ''
             })).filter(s => s.lat && s.lon)
           : [],
         
@@ -1808,9 +1810,11 @@
         });
 
         const coord = `${num(s.lat).toFixed(6)}, ${num(s.lon).toFixed(6)}`;
+        const stationTxt = s.stationName ? String(s.stationName) : '';
         const marker = L.marker([s.lat,s.lon],{icon:stopIcon})
           .bindPopup(
             `<b>🅿️ จอดดับเครื่อง #${idx + 1}</b>` +
+            `${stationTxt ? `<br>📍 <b>${stationTxt}</b>` : ''}` +
             `<br>เริ่ม ${s.startTime ? fmtDateTime(s.startTime) : '—'}` +
             `<br>ออก ${s.endTime ? fmtDateTime(s.endTime) : '—'}` +
             `<br>รวม ${num(s.durationMin).toFixed(1)} นาที` +
@@ -1822,7 +1826,9 @@
 
         const btn = document.createElement('button');
         btn.className = 'route-stop-chip';
-        btn.textContent = `■ จอด ${idx + 1} · ${num(s.durationMin).toFixed(0)} นาที`;
+        btn.textContent = s.stationName
+          ? `■ ${s.stationName} · ${num(s.durationMin).toFixed(0)} นาที`
+          : `■ จอด ${idx + 1} · ${num(s.durationMin).toFixed(0)} นาที`;
         btn.onclick = () => openStopMarker(idx);
         chipBox.appendChild(btn);
       });
