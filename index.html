@@ -123,7 +123,15 @@
   .drawer::-webkit-scrollbar{width:7px}
   .drawer::-webkit-scrollbar-thumb{background:rgba(120,140,130,.3);border-radius:10px}
   .dh{background:linear-gradient(135deg,var(--pine),var(--pine-deep));color:#fff;padding:20px 22px 18px;position:relative}
-  .dh .x{position:absolute;top:14px;right:16px;width:32px;height:32px;border-radius:9px;border:none;background:rgba(255,255,255,.16);color:#fff;font-size:19px;cursor:pointer;line-height:1}
+    .dh-live{margin-top:12px;padding-top:11px;border-top:1px solid rgba(255,255,255,.22);display:grid;gap:7px}
+  .dh-live-row{display:flex;align-items:flex-start;gap:10px;font-size:12.5px;line-height:1.35}
+  .dh-live-row .k{opacity:.78;white-space:nowrap}
+  .dh-live-row .v{margin-left:auto;text-align:right;font-weight:800}
+  .dh-dir{display:inline-flex;align-items:center;padding:4px 9px;border-radius:999px;font-weight:800}
+  .dh-dir-in{background:#dff6ea;color:#087a4f}
+  .dh-dir-out{background:#fff0e3;color:#c45100}
+  .dh-dir-neutral{background:rgba(255,255,255,.16);color:#fff}
+.dh .x{position:absolute;top:14px;right:16px;width:32px;height:32px;border-radius:9px;border:none;background:rgba(255,255,255,.16);color:#fff;font-size:19px;cursor:pointer;line-height:1}
   .dh .dbadge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;background:rgba(255,255,255,.16);padding:3px 10px;border-radius:20px}
   .dh .dname{font-size:19px;font-weight:700;margin-top:11px}
   .dh .dmeta{font-size:12px;color:#BFE0D2;margin-top:3px;font-family:'IBM Plex Mono',monospace}
@@ -1250,10 +1258,10 @@
         let directionTxt = '';
         let directionClass = 'dir-neutral';
         if(d.direction === 'back'){
-          directionTxt = '↙ วิ่งเข้า';
+          directionTxt = '↙ กำลังเข้าโรงงาน';
           directionClass = 'dir-in';
         }else if(d.direction === 'out'){
-          directionTxt = '↗ วิ่งออก';
+          directionTxt = '↗ กำลังออกจากโรงงาน';
           directionClass = 'dir-out';
         }else if(d.dirText){
           directionTxt = d.dirText;
@@ -1398,6 +1406,31 @@
           const parkPct = totalMin > 0 ? Math.round(num(d.parkMin) / totalMin * 100) : 0;
           const idlePct = totalMin > 0 ? Math.round(num(d.idleMin) / totalMin * 100) : 0;
       
+          // ข้อมูลสดสำหรับแถบเขียวด้านบน Drawer
+          const drawerLocParts = [];
+          if(d.loc) drawerLocParts.push(d.loc);
+          if(d.prov && d.prov !== d.loc) drawerLocParts.push(d.prov);
+          const drawerCurrentLoc = drawerLocParts.join(' · ');
+
+          let drawerDirectionTxt = '';
+          let drawerDirectionClass = 'dh-dir-neutral';
+          if(d.direction === 'back'){
+            drawerDirectionTxt = '↙ วิ่งเข้า';
+            drawerDirectionClass = 'dh-dir-in';
+          }else if(d.direction === 'out'){
+            drawerDirectionTxt = '↗ วิ่งออก';
+            drawerDirectionClass = 'dh-dir-out';
+          }else if(d.dirText){
+            drawerDirectionTxt = d.dirText;
+          }
+
+          const drawerLiveHtml = (drawerCurrentLoc || drawerDirectionTxt || d.distFactory != null) ? `
+            <div class="dh-live">
+              ${drawerCurrentLoc ? `<div class="dh-live-row"><span class="k">📍 พิกัดปัจจุบัน</span><span class="v">${drawerCurrentLoc}</span></div>` : ''}
+              ${d.distFactory != null ? `<div class="dh-live-row"><span class="k">🏭 ระยะห่าง</span><span class="v">${num(d.distFactory).toFixed(1)} กม. จากโรงงาน</span></div>` : ''}
+              ${drawerDirectionTxt ? `<div class="dh-live-row"><span class="k">🧭 ทิศทาง</span><span class="v"><span class="dh-dir ${drawerDirectionClass}">${drawerDirectionTxt}</span></span></div>` : ''}
+            </div>` : '';
+
           // ประวัติออก / เข้าโรงงานทุกครั้ง
           const factoryTrips = Array.isArray(d.factoryTrips) ? d.factoryTrips : [];
       
@@ -1438,6 +1471,7 @@
               <span class="dbadge">${stateBadge(d.gpsState)}</span>
               <div class="dname">${title}</div>
               <div class="dmeta">${d.driverId || ''} · ${d.vehicleType || ''} · ${d.date || API_DATE || ''}</div>
+              ${drawerLiveHtml}
             </div>
       
             <div class="dbody">
