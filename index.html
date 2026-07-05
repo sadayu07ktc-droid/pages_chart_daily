@@ -1712,6 +1712,36 @@
     }
   }
 
+  function haversineKmClient(a, b){
+    const R = 6371;
+    const toRad = v => v * Math.PI / 180;
+    const dLat = toRad(b.lat - a.lat);
+    const dLon = toRad(b.lon - a.lon);
+    const lat1 = toRad(a.lat);
+    const lat2 = toRad(b.lat);
+
+    const h =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1) * Math.cos(lat2) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+    return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+  }
+
+  function speedBand(kmh){
+    kmh = num(kmh);
+    if(kmh > 80) return 'over80';
+    if(kmh > 60) return '61to80';
+    return '0to60';
+  }
+
+  function speedBandLabel(kmh){
+    kmh = num(kmh);
+    if(kmh > 80) return 'เกิน 80 กม./ชม.';
+    if(kmh > 60) return '61–80 กม./ชม.';
+    return '0–60 กม./ชม.';
+  }
+
   function openRouteHistoryMap(d){
     const points = Array.isArray(d.routePoints) ? d.routePoints : [];
     if(points.length < 2){
@@ -1765,10 +1795,63 @@
         return '#16845f';
       }
 
+      // สรุปช่วงต่อเนื่องตามเรทความเร็ว เพื่อให้ Tooltip บอก
+      // "ขับเรทนี้กี่นาที / ระยะทางเท่าไหร่"
+      const bandRuns = [];
+      let run = null;
+
       for(let i = 1; i < points.length; i++){
         const p0 = points[i - 1];
         const p1 = points[i];
         const segSpeed = num(p1.speed != null ? p1.speed : p0.speed);
+        const band = speedBand(segSpeed);
+        const segKm = haversineKmClient(p0, p1);
+
+        const t0 = p0.time ? new Date(p0.time).getTime() : NaN;
+        const t1 = p1.time ? new Date(p1.time).getTime() : NaN;
+        const segMs = (isFinite(t0) && isFinite(t1) && t1 >= t0) ? (t1 - t0) : 0;
+
+        if(!run || run.band !== band){
+          if(run) bandRuns.push(run);
+          run = {
+            band,
+            startIndex: i - 1,
+            endIndex: i,
+            distanceKm: segKm,
+            durationMs: segMs,
+            speedWeightedSum: segSpeed * Math.max(segKm, 0.001),
+            speedWeight: Math.max(segKm, 0.001)
+          };
+        }else{
+          run.endIndex = i;
+          run.distanceKm += segKm;
+          run.durationMs += segMs;
+          run.speedWeightedSum += segSpeed * Math.max(segKm, 0.001);
+          run.speedWeight += Math.max(segKm, 0.001);
+        }
+      }
+      if(run) bandRuns.push(run);
+
+      // map index ของแต่ละ segment -> run ที่สังกัด
+      const runBySegIndex = {};
+      bandRuns.forEach(r => {
+        for(let i = r.startIndex + 1; i <= r.endIndex; i++){
+          runBySegIndex[i] = r;
+        }
+      });
+
+      for(let i = 1; i < points.length; i++){
+        const p0 = points[i - 1];
+        const p1 = points[i];
+        const segSpeed = num(p1.speed != null ? p1.speed : p0.speed);
+        const r = runBySegIndex[i];
+
+        const avgBandSpeed = r && r.speedWeight > 0
+          ? r.speedWeightedSum / r.speedWeight
+          : segSpeed;
+
+        const minutes = r ? r.durationMs / 60000 : 0;
+        const km = r ? r.distanceKm : haversineKmClient(p0, p1);
 
         const segLine = L.polyline(
           [[p0.lat, p0.lon], [p1.lat, p1.lon]],
@@ -1781,8 +1864,12 @@
 
         segLine.bindTooltip(
           `<b>${segSpeed.toFixed(1)} กม./ชม.</b>` +
-          `${p1.time ? `<br>${fmtDateTime(p1.time)}` : ''}`,
-          {sticky:true, direction:'top', opacity:.96}
+          `<br><span style="color:#5f6f68">${speedBandLabel(segSpeed)}</span>` +
+          `<br>⏱ ขับช่วงนี้ ${minutes > 0 ? minutes.toFixed(1) : '—'} นาที` +
+          `<br>📏 ระยะทาง ${km.toFixed(2)} กม.` +
+          `<br>🚚 เฉลี่ยช่วงนี้ ${avgBandSpeed.toFixed(1)} กม./ชม.` +
+          `${p1.time ? `<br>🕐 ${fmtDateTime(p1.time)}` : ''}`,
+          {sticky:true, direction:'top', opacity:.97}
         );
 
         segLine.on('click', function(){
