@@ -144,6 +144,9 @@
   #routeMap{flex:1;min-height:320px}.route-map-foot{padding:10px 14px;background:#f6faf8;border-top:1px solid var(--line);font-size:12px;color:var(--ink-soft)}
   .route-start-icon,.route-end-icon{width:18px;height:18px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.25)}
   .route-start-icon{background:#2474e5}.route-end-icon{background:#0f8a5f}
+  .route-speed-legend{background:rgba(255,255,255,.94);padding:8px 10px;border-radius:10px;box-shadow:0 3px 12px rgba(0,0,0,.16);font-size:11px;line-height:1.5;color:#24352f}
+  .route-speed-legend .r{display:flex;align-items:center;gap:7px;white-space:nowrap}
+  .route-speed-legend .c{width:18px;height:4px;border-radius:999px}
 .dh .x{position:absolute;top:14px;right:16px;width:32px;height:32px;border-radius:9px;border:none;background:rgba(255,255,255,.16);color:#fff;font-size:19px;cursor:pointer;line-height:1}
   .dh .dbadge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;background:rgba(255,255,255,.16);padding:3px 10px;border-radius:20px}
   .dh .dname{font-size:19px;font-weight:700;margin-top:11px}
@@ -454,7 +457,7 @@
         liveLat: x.liveLat == null ? null : num(x.liveLat),
         liveLon: x.liveLon == null ? null : num(x.liveLon),
         routePoints: Array.isArray(x.routePoints)
-          ? x.routePoints.map(p => ({lat:num(p.lat), lon:num(p.lon), time:p.time || ''})).filter(p => p.lat && p.lon)
+          ? x.routePoints.map(p => ({lat:num(p.lat), lon:num(p.lon), time:p.time || '', speed:num(p.speed)})).filter(p => p.lat && p.lon)
           : [],
         
         factoryTrips: Array.isArray(x.factoryTrips)
@@ -693,7 +696,7 @@
         liveLat: x.liveLat == null ? null : num(x.liveLat),
         liveLon: x.liveLon == null ? null : num(x.liveLon),
         routePoints: Array.isArray(x.routePoints)
-          ? x.routePoints.map(p => ({lat:num(p.lat), lon:num(p.lon), time:p.time || ''})).filter(p => p.lat && p.lon)
+          ? x.routePoints.map(p => ({lat:num(p.lat), lon:num(p.lon), time:p.time || '', speed:num(p.speed)})).filter(p => p.lat && p.lon)
           : [],
         
         factoryTrips: Array.isArray(x.factoryTrips)
@@ -1653,12 +1656,59 @@
       if(!ROUTE_MAP){
         ROUTE_MAP = L.map('routeMap', {zoomControl:true});
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'&copy; OpenStreetMap'}).addTo(ROUTE_MAP);
+
+        const speedLegend = L.control({position:'bottomright'});
+        speedLegend.onAdd = function(){
+          const div = L.DomUtil.create('div','route-speed-legend');
+          div.innerHTML = `
+            <div style="font-weight:800;margin-bottom:4px">ความเร็วเส้นทาง</div>
+            <div class="r"><span class="c" style="background:#16845f"></span>0–60 กม./ชม.</div>
+            <div class="r"><span class="c" style="background:#f0a128"></span>61–80 กม./ชม.</div>
+            <div class="r"><span class="c" style="background:#d9342b"></span>เกิน 80 กม./ชม.</div>`;
+          return div;
+        };
+        speedLegend.addTo(ROUTE_MAP);
       }
       if(ROUTE_LAYER){ ROUTE_LAYER.remove(); ROUTE_LAYER = null; }
 
       const latlngs = points.map(p => [p.lat, p.lon]);
       ROUTE_LAYER = L.layerGroup().addTo(ROUTE_MAP);
-      L.polyline(latlngs, {color:'#0f7d59',weight:5,opacity:.9}).addTo(ROUTE_LAYER);
+
+      // สีเส้นทางตามความเร็ว
+      // เขียว <= 60, ส้ม 61-80, แดง > 80 กม./ชม.
+      function speedColor(kmh){
+        kmh = num(kmh);
+        if(kmh > 80) return '#d9342b';
+        if(kmh > 60) return '#f0a128';
+        return '#16845f';
+      }
+
+      for(let i = 1; i < points.length; i++){
+        const p0 = points[i - 1];
+        const p1 = points[i];
+        const segSpeed = num(p1.speed != null ? p1.speed : p0.speed);
+
+        const segLine = L.polyline(
+          [[p0.lat, p0.lon], [p1.lat, p1.lon]],
+          {
+            color: speedColor(segSpeed),
+            weight: 6,
+            opacity: .92
+          }
+        );
+
+        segLine.bindTooltip(
+          `<b>${segSpeed.toFixed(1)} กม./ชม.</b>` +
+          `${p1.time ? `<br>${fmtDateTime(p1.time)}` : ''}`,
+          {sticky:true, direction:'top', opacity:.96}
+        );
+
+        segLine.on('click', function(){
+          this.openTooltip();
+        });
+
+        segLine.addTo(ROUTE_LAYER);
+      }
 
       const startIcon = L.divIcon({className:'',html:'<div class="route-start-icon"></div>',iconSize:[18,18],iconAnchor:[9,9]});
       const endIcon = L.divIcon({className:'',html:'<div class="route-end-icon"></div>',iconSize:[18,18],iconAnchor:[9,9]});
