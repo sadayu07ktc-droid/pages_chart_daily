@@ -406,6 +406,13 @@
         actualTripMin: num(x.actualTripMin),
         leaveTime: x.leaveTime || '',
         returnTime: x.returnTime || '',
+
+        loc: x.loc || '',
+        prov: x.prov || '',
+        direction: x.direction || '',
+        dirText: x.dirText || '',
+        distFactory: x.distFactory == null ? null : num(x.distFactory),
+        liveSpeed: num(x.liveSpeed),
         
         factoryTrips: Array.isArray(x.factoryTrips)
           ? x.factoryTrips
@@ -633,6 +640,13 @@
         // ✅ สำคัญ: เดิมหายตรงนี้
         leaveTime: x.leaveTime || '',
         returnTime: x.returnTime || '',
+
+        loc: x.loc || '',
+        prov: x.prov || '',
+        direction: x.direction || '',
+        dirText: x.dirText || '',
+        distFactory: x.distFactory == null ? null : num(x.distFactory),
+        liveSpeed: num(x.liveSpeed),
         
         factoryTrips: Array.isArray(x.factoryTrips)
           ? x.factoryTrips
@@ -1223,6 +1237,23 @@
         const showTimes = true; // แสดงเวลาออก/กลับใน Tooltip ทุกช่วงข้อมูล ถ้ามีค่า
         const leaveTxt = d.leaveTime ? fmtDateTime(d.leaveTime) : '';
         const returnTxt = d.returnTime ? fmtDateTime(d.returnTime) : '';
+
+        const locParts = [];
+        if(d.loc) locParts.push(d.loc);
+        if(d.prov && d.prov !== d.loc) locParts.push(d.prov);
+        const currentLoc = locParts.join(' · ');
+
+        let directionTxt = '';
+        if(d.direction === 'back') directionTxt = '↙ กำลังเข้าโรงงาน';
+        else if(d.direction === 'out') directionTxt = '↗ กำลังออกจากโรงงาน';
+        else if(d.dirText) directionTxt = d.dirText;
+
+        const liveRow = (currentLoc || directionTxt || d.distFactory != null) ? `
+          <div class="div"></div>
+          ${currentLoc ? `<div class="trow">📍 โลเคชั่นปัจจุบัน<span class="v">${currentLoc}</span></div>` : ''}
+          ${directionTxt ? `<div class="trow">🧭 ทิศทาง<span class="v">${directionTxt}</span></div>` : ''}
+          ${d.distFactory != null ? `<div class="trow">🏭 ห่างโรงงาน<span class="v">${num(d.distFactory).toFixed(1)} กม.</span></div>` : ''}
+          ${num(d.liveSpeed) > 0 ? `<div class="trow">⚡ ความเร็วสด<span class="v">${num(d.liveSpeed).toFixed(0)} กม./ชม.</span></div>` : ''}` : '';
         const timesRow = (showTimes && (leaveTxt || returnTxt)) ? `
           <div class="div"></div>
           <div class="trow"><span class="sw" style="background:#2F6FD6"></span>ออกจากโรงงาน<span class="v">${leaveTxt || '—'}</span></div>
@@ -1238,6 +1269,7 @@
             <div class="kc"><div class="kv">${fmtMin(d.parkMin)}</div><div class="kl">จอดดับ (${parkPct}%)</div></div>
             <div class="kc"><div class="kv">${fmtMin(d.idleMin)}</div><div class="kl">จอดไม่ดับ (${idlePct}%)</div></div>
           </div>
+                    ${liveRow}
           ${timesRow}`;
     }else{
         const total = totalTime(d);
