@@ -260,7 +260,6 @@
     </div>
     <div style="position:relative;flex:1;min-height:320px">
       <div id="routeMap" style="height:100%"></div>
-      <div class="route-stop-chips" id="routeStopChips"></div>
     </div>
     <div class="route-map-foot" id="routeMapFoot"></div>
   </div>
@@ -1797,9 +1796,7 @@
 
       // จุดจอดดับเครื่อง + ชิปกดดู
       const stopPoints = Array.isArray(d.stopPoints) ? d.stopPoints : [];
-      const chipBox = document.getElementById('routeStopChips');
       window.__ROUTE_STOP_MARKERS__ = [];
-      chipBox.innerHTML = '';
 
       stopPoints.forEach((s, idx) => {
         const stopIcon = L.divIcon({
@@ -1823,14 +1820,6 @@
           .addTo(ROUTE_LAYER);
 
         window.__ROUTE_STOP_MARKERS__.push(marker);
-
-        const btn = document.createElement('button');
-        btn.className = 'route-stop-chip';
-        btn.textContent = s.stationName
-          ? `■ ${s.stationName} · ${num(s.durationMin).toFixed(0)} นาที`
-          : `■ จอด ${idx + 1} · ${num(s.durationMin).toFixed(0)} นาที`;
-        btn.onclick = () => openStopMarker(idx);
-        chipBox.appendChild(btn);
       });
 
       const startIcon = L.divIcon({className:'',html:'<div class="route-start-icon"></div>',iconSize:[18,18],iconAnchor:[9,9]});
