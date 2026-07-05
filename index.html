@@ -1244,8 +1244,8 @@
         const currentLoc = locParts.join(' · ');
 
         let directionTxt = '';
-        if(d.direction === 'back') directionTxt = '↙ กำลังเข้าโรงงาน';
-        else if(d.direction === 'out') directionTxt = '↗ กำลังออกจากโรงงาน';
+        if(d.direction === 'back') directionTxt = '↙ กำลังเข้า';
+        else if(d.direction === 'out') directionTxt = '↗ กำลังออก';
         else if(d.dirText) directionTxt = d.dirText;
 
         const liveRow = (currentLoc || directionTxt || d.distFactory != null) ? `
