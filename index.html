@@ -1080,7 +1080,14 @@
     const items = series.items;
     const H = 300;
     const tv = targetValue();
-    let maxV = Math.max(...items.map(x => colHeight(x.d)), tv || 0, 1) * 1.12;
+    const rawMaxV = Math.max(...items.map(x => colHeight(x.d)), tv || 0, 0);
+    let maxV = rawMaxV > 0 ? rawMaxV * 1.12 : 1;
+
+    // ต้นทุน/หน่วยมักเป็นเลขทศนิยมเล็ก เช่น 0.0422
+    // ใช้สเกลตามข้อมูลจริง ไม่บังคับขั้นต่ำ 1
+    if(metric === 'costUnit'){
+      maxV = rawMaxV > 0 ? Math.max(rawMaxV * 1.25, 0.01) : 0.01;
+    }
 
     if(metric === 'heavyPct') maxV = 112;
 
@@ -1381,7 +1388,7 @@
       
             <div class="dbody">
               <div class="dsec">
-                <h3>📍 ระยะวิ่งจริงวันนี้</h3>
+                <h3>📍 ระยะวิ่งจริงตามรอบงาน</h3>
                 <div class="dbar-wrap">
                   <div class="dbar-track">
                     ${seg(num(d.runMin),'seg-h')}
