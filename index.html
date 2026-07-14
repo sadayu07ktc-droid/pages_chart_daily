@@ -299,6 +299,12 @@
     return num(n).toLocaleString('th-TH', {minimumFractionDigits:0, maximumFractionDigits:2});
   }
 
+  // yyyy-MM-dd → dd-mm-yyyy
+  function fmtDMY(d){
+    const m = String(d || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? (m[3] + '-' + m[2] + '-' + m[1]) : String(d || '');
+  }
+
   function fmtMin(m){
     m = Math.round(num(m));
     return Math.floor(m / 60) + ':' + String(m % 60).padStart(2,'0');
@@ -538,7 +544,7 @@
       ok: true,
       source: j.source || 'LOG_DTC_DailySummary',
       mode: 'summary',
-      date: j.from && j.to ? (j.from + ' ถึง ' + j.to) : (j.date || ''),
+      date: j.from && j.to ? (fmtDMY(j.from) + ' ถึง ' + fmtDMY(j.to)) : (j.date || ''),
       updatedAt: j.updatedAt || '',
       summary: j.summary || {},
       items
@@ -582,7 +588,7 @@
       ok: true,
       source: j.source || 'Log_Weight',
       mode: 'order',
-      date: j.from && j.to ? (j.from + ' ถึง ' + j.to) : '',
+      date: j.from && j.to ? (fmtDMY(j.from) + ' ถึง ' + fmtDMY(j.to)) : '',
       updatedAt: j.updatedAt || '',
       summary: j.summary || {},
       items
@@ -1444,6 +1450,7 @@
             <div class="dsec">
               <h3>💰 ต้นทุน / ประสิทธิภาพ</h3>
               <div class="dmetrics">
+                <div class="dm"><div class="v">${num(d.distanceKm).toLocaleString('th-TH')}</div><div class="l">ระยะทางรวม (กม.)</div></div>
                 <div class="dm"><div class="v">${money(d.costTotal)}</div><div class="l">ต้นทุนรวม (บาท)</div></div>
                 <div class="dm"><div class="v">${money(d.costPerTrip)}</div><div class="l">ต้นทุน/เที่ยว</div></div>
                 <div class="dm"><div class="v">${num(d.costPerUnit).toFixed(4)}</div><div class="l">บาท/${unit}</div></div>
