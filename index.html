@@ -269,14 +269,18 @@
 <script>
   const GAS_URL = 'https://script.google.com/macros/s/AKfycbw4UvKuRrAQ_3Ldm8U0VJqfjfBQUSYaTEdrxkdXUVN98G68XseCquhDeXfMgU8cVYaY/exec';
 
+  const _P = new URLSearchParams(location.search);
+  const EMBED = _P.get('embed') === '1';
+  const METRIC_GROUPS = { dtc:['time','dtcDist','speed','kmL'], cost:['dist','cost','costUnit','heavyPct'] };
+
   const TARGET_DIST = 300;
   const TARGET_TIME = 9 * 60;
   const TARGET_HEAVY_PCT = 70;
 
-  let metric = 'time';
+  let metric = _P.get('m') || 'time';
   let scope = 'fleet';
   let sortBy = 'main';
-  let range = 'today';
+  let range = _P.get('r') || 'today';
 
   let API_ITEMS = [];
   let API_VEHICLES = [];
@@ -1980,7 +1984,28 @@
     reloadAndRender();
   });
 
-  reloadAndRender();
+  function applyEmbedChrome(){
+    const back = document.querySelector('.back-nav'); if(back) back.style.display = 'none';
+    const h1 = document.querySelector('.wrap .head h1'); if(h1) h1.style.display = 'none';
+    const allow = METRIC_GROUPS[_P.get('grp')] || null;
+    document.querySelectorAll('#metricSeg button').forEach(b => {
+      if(allow && !allow.includes(b.dataset.m)) b.style.display = 'none';
+      b.classList.toggle('on', b.dataset.m === metric);
+    });
+    const rs = document.getElementById('range'); if(rs) rs.value = range;
+  }
+
+  if(!EMBED){
+    document.title = 'กราฟสถานะรถ / ระยะทาง / ต้นทุน';
+    document.body.innerHTML =
+      '<div style="display:flex;flex-direction:column;gap:12px;padding:8px">' +
+        '<iframe title="ระยะทาง (DTC)" src="?embed=1&m=dtcDist&r=today&grp=dtc" style="border:0.5px solid #e3e3e3;width:100%;height:700px;display:block;border-radius:12px"></iframe>' +
+        '<iframe title="ต้นทุน (LOG_Weight)" src="?embed=1&m=costUnit&r=month&grp=cost" style="border:0.5px solid #e3e3e3;width:100%;height:700px;display:block;border-radius:12px"></iframe>' +
+      '</div>';
+  }else{
+    applyEmbedChrome();
+    reloadAndRender();
+  }
 </script>
 </body>
 </html>
