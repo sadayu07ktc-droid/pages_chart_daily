@@ -1997,11 +1997,47 @@
 
   if(!EMBED){
     document.title = 'กราฟสถานะรถ / ระยะทาง / ต้นทุน';
+    // เมนูซ้ายมือ เลือกกราฟทีละอัน (แต่ละอัน embed หน้าเดิม + กลุ่มชิปของตัวเอง)
+    const MENU = [
+      {ic:'📍', t:'ระยะทาง',  s:'DTC · วันนี้',         src:'?embed=1&m=dtcDist&r=today&grp=dtc'},
+      {ic:'💰', t:'ต้นทุน',   s:'LOG_Weight · เดือนนี้', src:'?embed=1&m=costUnit&r=month&grp=cost'}
+    ];
     document.body.innerHTML =
-      '<div style="display:flex;flex-direction:column;gap:12px;padding:8px">' +
-        '<iframe title="ระยะทาง (DTC)" src="?embed=1&m=dtcDist&r=today&grp=dtc" style="border:0.5px solid #e3e3e3;width:100%;height:700px;display:block;border-radius:12px"></iframe>' +
-        '<iframe title="ต้นทุน (LOG_Weight)" src="?embed=1&m=costUnit&r=month&grp=cost" style="border:0.5px solid #e3e3e3;width:100%;height:700px;display:block;border-radius:12px"></iframe>' +
-      '</div>';
+      '<style>'
+      + 'body{margin:0;background:#EEF2EE}'
+      + '.host{display:grid;grid-template-columns:220px 1fr;gap:14px;max-width:1200px;margin:0 auto;padding:14px 16px 24px;align-items:start}'
+      + '.menu{position:sticky;top:14px;display:flex;flex-direction:column;gap:8px}'
+      + '.menu .back{display:inline-flex;align-items:center;gap:5px;font-size:13px;color:#2D6A4F;text-decoration:none;font-weight:600;padding:2px 6px 8px}'
+      + '.menu .lbl{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#8A968D;padding:0 8px 3px}'
+      + '.mi{display:flex;align-items:center;gap:11px;text-align:left;border:1px solid #DCE4DE;background:#fff;border-radius:13px;padding:12px 13px;cursor:pointer;font-family:inherit;transition:.15s;color:#17201B}'
+      + '.mi:hover{border-color:#B7C7BC}.mi:active{transform:scale(.99)}'
+      + '.mi.on{background:linear-gradient(135deg,#1B4332,#2D6A4F);border-color:#1B4332;color:#fff;box-shadow:0 8px 20px -10px rgba(27,67,50,.5)}'
+      + '.mi .ic{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;font-size:18px;background:#F1F5F2;flex:none}'
+      + '.mi.on .ic{background:rgba(255,255,255,.16)}'
+      + '.mi .tx{display:flex;flex-direction:column;line-height:1.3;min-width:0}'
+      + '.mi .tx b{font-size:14px;font-weight:700}'
+      + '.mi .tx small{font-size:11.5px;color:#5C6B62}.mi.on .tx small{color:#CFE6D8}'
+      + '.stage{background:#fff;border:1px solid #DCE4DE;border-radius:16px;overflow:hidden;box-shadow:0 1px 2px rgba(20,40,25,.05),0 10px 28px -16px rgba(20,40,25,.25)}'
+      + '#chartFrame{border:0;width:100%;height:calc(100vh - 40px);min-height:600px;display:block}'
+      + '@media(max-width:720px){.host{grid-template-columns:1fr;gap:10px;padding:10px}.menu{position:static;flex-direction:row;overflow-x:auto;gap:8px;-webkit-overflow-scrolling:touch}.menu .back,.menu .lbl{display:none}.mi{flex:0 0 auto;min-width:152px}#chartFrame{height:calc(100vh - 120px);min-height:520px}}'
+      + '</style>'
+      + '<div class="host">'
+      +   '<aside class="menu">'
+      +     '<a class="back" href="https://liff.line.me/2010274217-Ot7vGhri" target="_top" rel="noopener">‹ กลับ SSB Dashboard</a>'
+      +     '<div class="lbl">เลือกกราฟ</div>'
+      +     MENU.map((m,i)=>'<button class="mi'+(i===0?' on':'')+'" data-src="'+m.src+'"><span class="ic">'+m.ic+'</span><span class="tx"><b>'+m.t+'</b><small>'+m.s+'</small></span></button>').join('')
+      +   '</aside>'
+      +   '<main class="stage"><iframe id="chartFrame" title="กราฟ" src="'+MENU[0].src+'"></iframe></main>'
+      + '</div>';
+    const frame = document.getElementById('chartFrame');
+    document.querySelectorAll('.mi').forEach(b => {
+      b.addEventListener('click', () => {
+        if(b.classList.contains('on')) return;
+        document.querySelectorAll('.mi').forEach(x => x.classList.remove('on'));
+        b.classList.add('on');
+        frame.src = b.dataset.src;
+      });
+    });
   }else{
     applyEmbedChrome();
     reloadAndRender();
