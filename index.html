@@ -240,6 +240,7 @@
   </div>
 
   <div class="chart-box">
+    <div id="ecBars" hidden style="width:100%"></div>
     <div id="grid"></div>
     <div class="bars-scroll"><div class="bars" id="bars"></div></div>
   </div>
@@ -1189,6 +1190,65 @@
       </div>`;
   }
 
+  /* ══ ECharts (lazy + fallback แท่ง SVG เดิม) — กราฟแท่งซ้อน interactive ══ */
+  var EC_URL = "https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.common.min.js";
+  var ECI = {}, ecLoading = null, EC_FAILED = false, _segCol = {};
+  var SEG_LABEL = {'seg-h':'วิ่ง','seg-i':'จอดไม่ดับ','seg-s':'จอดดับ','seg-o':'เกินเวลา','seg-l':'เบา','seg-heavy':'ระยะหนัก','seg-light':'ระยะเบา','seg-no-run':'ไม่วิ่ง','seg-fuel':'น้ำมัน','seg-speed':'ความเร็ว','seg-kml':'กม./ลิตร'};
+  function cvar(n){ try{ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }catch(e){ return ''; } }
+  function segLabel(c){ return SEG_LABEL[c] || c; }
+  function segColor(cls){ if(_segCol[cls]) return _segCol[cls]; var d=document.createElement('div'); d.className=cls; d.style.cssText='position:absolute;left:-9999px;top:-9999px;width:2px;height:2px'; document.body.appendChild(d); var c=getComputedStyle(d).backgroundColor||'#8aa'; document.body.removeChild(d); _segCol[cls]=c; return c; }
+  function loadECharts(){ if(window.echarts) return Promise.resolve(window.echarts); if(ecLoading) return ecLoading;
+    ecLoading = new Promise(function(res, rej){ var s=document.createElement('script'); s.src=EC_URL; s.async=true; s.onload=function(){ res(window.echarts); }; s.onerror=function(){ ecLoading=null; rej(new Error('load fail')); }; document.head.appendChild(s); });
+    return ecLoading; }
+  function ecMake(id){ var box=document.getElementById(id); if(ECI[id]){ try{ECI[id].dispose();}catch(e){} delete ECI[id]; } ECI[id]=window.echarts.init(box,null,{renderer:'svg'}); return ECI[id]; }
+  window.addEventListener('resize', function(){ Object.keys(ECI).forEach(function(k){ try{ECI[k].resize();}catch(e){} }); });
+  function ecFmtVal(v){ v=num(v);
+    if(metric==='time') return (typeof fmtMin==='function'?fmtMin(v):(Math.round(v/60*10)/10))+' ชม.';
+    if(metric==='dtcDist'||metric==='dist') return v.toLocaleString('th-TH')+' กม.';
+    if(metric==='speed') return v.toFixed(1)+' กม./ชม.';
+    if(metric==='cost') return (typeof money==='function'?money(v):v.toFixed(2))+' บ.';
+    if(metric==='costUnit') return v.toFixed(4);
+    if(metric==='heavyPct') return v.toFixed(0)+'%';
+    if(metric==='fuel') return (typeof money==='function'?money(v):v.toFixed(1))+' ล.';
+    if(metric==='kmL') return v.toFixed(2)+' กม./ล.';
+    return String(Math.round(v)); }
+  function drawEC(items, maxV, tv){
+    var ch=ecMake('ecBars');
+    var cats=items.map(function(it){ return it.l1||''; });
+    var rows=items.map(function(it){ return segs(it.d); });
+    var order=[]; rows.forEach(function(r){ r.forEach(function(p){ if(order.indexOf(p[0])<0) order.push(p[0]); }); });
+    var alertF=items.map(function(it){ return API_MODE==='dtc' && (num(it.d.idleOverCount)>0 || num(it.d.overtime8)>0); });
+    var series=order.map(function(cls){
+      return { name:segLabel(cls), type:'bar', stack:'g', barMaxWidth:30, itemStyle:{color:segColor(cls)},
+        data: rows.map(function(r){ for(var i=0;i<r.length;i++){ if(r[i][0]===cls) return r[i][1]; } return 0; }) }; });
+    var tgt=cvar('--target')||'#C0492F';
+    if(tv!=null && series.length){
+      series[series.length-1].markLine={ silent:true, symbol:'none',
+        lineStyle:{color:tgt,type:'dashed',width:1.4},
+        label:{formatter:targetText(),color:tgt,fontSize:10,position:'insideEndTop'}, data:[{yAxis:tv}] }; }
+    var many=items.length>12;
+    var muted=cvar('--ink-faint')||'#8A9A92', line=cvar('--line')||'#E2EAE6', ink=cvar('--ink')||'#13201B', soft=cvar('--ink-soft')||'#4A5B53';
+    var opt={
+      textStyle:{fontFamily:'"Noto Sans Thai",system-ui,sans-serif'},
+      grid:{left:46,right:18,top:34,bottom:many?74:66},
+      legend:{top:4,itemWidth:12,itemHeight:12,textStyle:{color:soft,fontSize:11.5}},
+      tooltip:{ trigger:'axis', axisPointer:{type:'shadow'}, backgroundColor:'transparent', borderWidth:0, padding:0, extraCssText:'box-shadow:none',
+        formatter:function(ps){ if(!ps||!ps.length) return ''; var i=ps[0].dataIndex, it=items[i]; if(!it) return ''; var d=it.d;
+          var title=(d.plate?d.plate+' · ':'')+(d.driverName||it.l2||d.driverId||it.l1||'');
+          var body=''; segs(d).forEach(function(p){ if(num(p[1])<=0) return; body+='<div class="trow"><span class="sw" style="background:'+segColor(p[0])+'"></span>'+segLabel(p[0])+'<span class="v">'+ecFmtVal(p[1])+'</span></div>'; });
+          var tot='<div class="div"></div><div class="big">'+metricName()+'<b>'+ecFmtVal(colHeight(d))+'</b></div>';
+          return '<div class="tip" style="position:static;opacity:1;visibility:visible;transform:none;pointer-events:none;box-shadow:0 10px 26px rgba(20,40,25,.16)"><h4>'+title+'</h4>'+body+tot+'<div style="font-size:10.5px;color:'+muted+';margin-top:6px">แตะแท่งเพื่อดูรายละเอียด</div></div>'; } },
+      xAxis:{type:'category',data:cats,axisTick:{show:false},axisLine:{lineStyle:{color:line}},
+        axisLabel:{interval:0,margin:11,formatter:function(v,i){ var it=items[i]||{}; var top=(alertF[i]?'⚠ ':'')+(it.l1||''); var bot=it.l2||''; return '{a|'+top+'}'+(bot?('\n{b|'+bot+'}'):''); },
+          rich:{a:{color:ink,fontSize:11,fontWeight:600,lineHeight:14,align:'center'},b:{color:muted,fontSize:9.5,lineHeight:12,align:'center'}} }},
+      yAxis:{type:'value',max:maxV,splitLine:{lineStyle:{color:line}},axisLabel:{color:muted,fontSize:10,formatter:function(v){ return String(yTickLabel(v)); }}},
+      series:series };
+    if(many){ opt.dataZoom=[{type:'inside',throttle:40},{type:'slider',height:16,bottom:6,borderColor:line,handleSize:'80%',textStyle:{color:muted,fontSize:9},start:0,end:Math.min(100,Math.max(20,12/items.length*100))}]; }
+    ch.setOption(opt,true);
+    ch.off('click'); ch.on('click',function(p){ if(p&&p.componentType==='series'){ var it=items[p.dataIndex]; if(it) openDrawer(it.d,it); } });
+    try{ ch.getZr().setCursorStyle('pointer'); }catch(e){}
+  }
+
   function render(){
     const series = buildSeries();
     renderKPI(series);
@@ -1208,6 +1268,21 @@
 
     if(metric === 'heavyPct') maxV = 112;
 
+    // ── ECharts ถ้าโหลดได้+มีข้อมูล → กราฟ interactive · ไม่งั้นถอยไปแท่ง SVG เดิม ──
+    var ecUsed = false, ecBox = document.getElementById('ecBars');
+    if(window.echarts && !EC_FAILED && items.length && !API_LOADING && !API_ERROR){
+      try{
+        ecBox.hidden = false; ecBox.style.height = '380px';
+        document.getElementById('grid').style.display = 'none';
+        document.querySelector('.bars-scroll').style.display = 'none';
+        drawEC(items, maxV, tv);
+        ecUsed = true;
+      }catch(e){ ecUsed = false; console.error('ec draw', e); }
+    }
+    if(!ecUsed){
+    if(ecBox) ecBox.hidden = true;
+    document.getElementById('grid').style.display = '';
+    document.querySelector('.bars-scroll').style.display = '';
     const grid = document.getElementById('grid');
     grid.innerHTML = '';
 
@@ -1262,6 +1337,7 @@
         col.addEventListener('click', () => openDrawer(d, it));
         bars.appendChild(col);
       });
+    }
     }
 
     const scopeTxt = scope === 'fleet' ? 'ทั้งฟลีต' : ('รถ ' + scope);
@@ -2041,6 +2117,8 @@
   }else{
     applyEmbedChrome();
     reloadAndRender();
+    // โหลด ECharts เบื้องหลัง แล้ววาดใหม่ให้เป็นกราฟ interactive (พังก็ถอยไปแท่ง SVG เดิม)
+    loadECharts().then(function(){ render(); }).catch(function(){ EC_FAILED = true; });
   }
 </script>
 </body>
