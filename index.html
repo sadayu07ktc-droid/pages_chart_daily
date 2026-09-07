@@ -1254,10 +1254,11 @@
         lineStyle:{color:tgt,type:'dashed',width:1.4},
         label:{formatter:targetText(),color:tgt,fontSize:10,position:'insideEndTop'}, data:[{yAxis:tv}] }; }
     var many=items.length>12;
+    var manyLabels=items.length>9;   // รถเยอะ → เอียงป้าย 45° (ทะเบียนบรรทัดเดียว กันซ้อน)
     var muted=cvar('--ink-faint')||'#8A9A92', line=cvar('--line')||'#E2EAE6', ink=cvar('--ink')||'#13201B', soft=cvar('--ink-soft')||'#4A5B53';
     var opt={
       textStyle:{fontFamily:'"Noto Sans Thai",system-ui,sans-serif'},
-      grid:{left:46,right:18,top:34,bottom:many?74:66},
+      grid:{left:46,right:18,top:34,bottom: manyLabels ? (many?98:82) : (many?74:66)},
       legend:{top:4,itemWidth:12,itemHeight:12,textStyle:{color:soft,fontSize:11.5}},
       tooltip:{ trigger:'axis', axisPointer:{type:'shadow'}, backgroundColor:'transparent', borderWidth:0, padding:0, extraCssText:'box-shadow:none',
         formatter:function(ps){ if(!ps||!ps.length) return ''; var i=ps[0].dataIndex, it=items[i]; if(!it) return ''; var d=it.d;
@@ -1266,8 +1267,10 @@
           var tot='<div class="div"></div><div class="big">'+metricName()+'<b>'+ecFmtVal(colHeight(d))+'</b></div>';
           return '<div class="tip" style="position:static;opacity:1;visibility:visible;transform:none;pointer-events:none;box-shadow:0 10px 26px rgba(20,40,25,.16)"><h4>'+title+'</h4>'+body+tot+'<div style="font-size:10.5px;color:'+muted+';margin-top:6px">แตะแท่งเพื่อดูรายละเอียด</div></div>'; } },
       xAxis:{type:'category',data:cats,axisTick:{show:false},axisLine:{lineStyle:{color:line}},
-        axisLabel:{interval:0,margin:11,formatter:function(v,i){ var it=items[i]||{}; var top=(alertF[i]?'⚠ ':'')+(it.l1||''); var bot=it.l2||''; return '{a|'+top+'}'+(bot?('\n{b|'+bot+'}'):''); },
-          rich:{a:{color:ink,fontSize:11,fontWeight:600,lineHeight:14,align:'center'},b:{color:muted,fontSize:9.5,lineHeight:12,align:'center'}} }},
+        axisLabel: manyLabels
+          ? {interval:0,rotate:42,margin:9,color:ink,fontSize:10,fontWeight:600,formatter:function(v,i){ return (alertF[i]?'⚠':'')+((items[i]||{}).l1||''); }}
+          : {interval:0,margin:11,formatter:function(v,i){ var it=items[i]||{}; var top=(alertF[i]?'⚠ ':'')+(it.l1||''); var bot=it.l2||''; return '{a|'+top+'}'+(bot?('\n{b|'+bot+'}'):''); },
+              rich:{a:{color:ink,fontSize:11,fontWeight:600,lineHeight:14,align:'center'},b:{color:muted,fontSize:9.5,lineHeight:12,align:'center'}} } },
       yAxis:{type:'value',max:maxV,splitLine:{lineStyle:{color:line}},axisLabel:{color:muted,fontSize:10,formatter:function(v){ return String(yTickLabel(v)); }}},
       series:series };
     if(many){ opt.dataZoom=[{type:'inside',throttle:40},{type:'slider',height:16,bottom:6,borderColor:line,handleSize:'80%',textStyle:{color:muted,fontSize:9},start:0,end:Math.min(100,Math.max(20,12/items.length*100))}]; }
