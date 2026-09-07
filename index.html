@@ -190,6 +190,23 @@
   .src-cost{background:#FBEDE9;color:#C0492F}
   .src-heavy{background:#FCF4DE;color:#B58A12}
 
+  /* ── hover micro-interactions: ปุ่ม/การ์ด/ช่องเลือก ขยับ-เด้งเวลาเลื่อนเมาส์ ── */
+  .seg button{transition:transform .16s cubic-bezier(.34,1.56,.64,1),background .15s,color .15s}
+  .seg button:hover{transform:translateY(-2px)}
+  .seg button.on:hover{transform:translateY(-2px) scale(1.02)}
+  .seg button:active{transform:translateY(0) scale(.93)}
+  .kpi{transition:transform .18s cubic-bezier(.34,1.4,.64,1),box-shadow .18s}
+  .kpi:hover{transform:translateY(-3px);box-shadow:0 13px 26px -14px rgba(15,90,64,.42)}
+  .pick select,.pick input{transition:transform .16s,border-color .16s,box-shadow .16s;cursor:pointer}
+  .pick select:hover,.pick input:hover{transform:translateY(-1px);border-color:var(--pine);box-shadow:0 6px 14px -8px rgba(15,90,64,.35)}
+  .back-btn{transition:transform .16s cubic-bezier(.34,1.5,.64,1),box-shadow .16s}
+  .back-btn:hover{transform:translateY(-2px);box-shadow:0 13px 24px rgba(15,90,64,.3)}
+  .back-btn:active{transform:translateY(0) scale(.97)}
+  @media(prefers-reduced-motion:reduce){
+    .seg button,.kpi,.pick select,.pick input,.back-btn{transition:none!important}
+    .seg button:hover,.seg button.on:hover,.kpi:hover,.pick select:hover,.pick input:hover,.back-btn:hover{transform:none!important}
+  }
+
 </style>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 </head>
@@ -2101,8 +2118,10 @@
       + '.menu{position:sticky;top:14px;display:flex;flex-direction:column;gap:8px}'
       + '.menu .back{display:inline-flex;align-items:center;gap:5px;font-size:13px;color:#2D6A4F;text-decoration:none;font-weight:600;padding:2px 6px 8px}'
       + '.menu .lbl{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#8A968D;padding:0 8px 3px}'
-      + '.mi{display:flex;align-items:center;gap:11px;text-align:left;border:1px solid #DCE4DE;background:#fff;border-radius:13px;padding:12px 13px;cursor:pointer;font-family:inherit;transition:.15s;color:#17201B}'
-      + '.mi:hover{border-color:#B7C7BC}.mi:active{transform:scale(.99)}'
+      + '.mi{display:flex;align-items:center;gap:11px;text-align:left;border:1px solid #DCE4DE;background:#fff;border-radius:13px;padding:12px 13px;cursor:pointer;font-family:inherit;transition:transform .18s cubic-bezier(.34,1.5,.64,1),border-color .15s,box-shadow .18s;color:#17201B}'
+      + '.mi:hover{border-color:#9DBAAC;transform:translateY(-3px);box-shadow:0 13px 24px -12px rgba(27,67,50,.34)}.mi:active{transform:translateY(-1px) scale(.98)}'
+      + '.mi .ic{transition:transform .18s cubic-bezier(.34,1.7,.5,1)}.mi:hover .ic{transform:scale(1.12) rotate(-4deg)}'
+      + '@media(prefers-reduced-motion:reduce){.mi,.mi .ic{transition:none!important}.mi:hover,.mi:hover .ic{transform:none!important}}'
       + '.mi.on{background:linear-gradient(135deg,#1B4332,#2D6A4F);border-color:#1B4332;color:#fff;box-shadow:0 8px 20px -10px rgba(27,67,50,.5)}'
       + '.mi .ic{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;background:#F1F5F2;flex:none}'
       + '.mi .ic svg{width:20px;height:20px;display:block}'
