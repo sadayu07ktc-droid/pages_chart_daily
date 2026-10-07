@@ -297,6 +297,8 @@
   </div>
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<!-- ssbFetch: อ่านจาก Supabase Edge ก่อน พลาด → GAS (ไฟล์อยู่ repo SSB-SMART-SUPPLY-DASHBOARD) · โหลดไม่ได้ก็ใช้ fetch เดิม -->
+<script src="https://sadayu07ktc-droid.github.io/SSB-SMART-SUPPLY-DASHBOARD/ssb-read.js?v=20261007j"></script>
 <script>
   const GAS_URL = 'https://script.google.com/macros/s/AKfycbw2DXaTVoX5cgUZjQrGlpx7tQ1-gwcYYB85eY8MElo2oaqBIxCsjVfL7yMiM8uuUw9YxA/exec';
 
@@ -678,7 +680,8 @@
           + '&t=' + Date.now();
       }
 
-      const r = await fetch(url, { cache:'no-store' });
+      // ⚡ ต้นทุน/ระยะทาง + น้ำมัน/ความเร็ว → Supabase Edge "chart-data" (GAS เดิมอ่านชีตเก่าที่หยุดอัปเดต = กราฟว่าง) · ระยะวิ่งจริง (DTC สด) ยังเป็น GAS
+      const r = await (window.ssbFetch || fetch)(url, { cache:'no-store' });
       const text = await r.text();
 
       let j;
