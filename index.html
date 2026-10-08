@@ -212,6 +212,7 @@
 
 </style>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <script src="https://sadayu07ktc-droid.github.io/SSB-SMART-SUPPLY-DASHBOARD/ssb-ui.js?v=20261008i"></script>
 </head>
 <body>
 <div class="back-nav">
@@ -1872,7 +1873,7 @@
   function openRouteHistoryMap(d){
     const points = Array.isArray(d.routePoints) ? d.routePoints : [];
     if(points.length < 2){
-      alert('ยังไม่มีประวัติเส้นทางจาก DTC getHistory สำหรับรอบนี้');
+      ssbAlert('ยังไม่มีประวัติเส้นทางจาก DTC getHistory สำหรับรอบนี้');
       return;
     }
 
